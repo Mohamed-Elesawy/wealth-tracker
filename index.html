@@ -1,0 +1,2083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Egypt Wealth Tracker</title>
+    <style>
+        :root {
+            --primary: #1a5276;
+            --secondary: #d4ac0d;
+            --bg: #f4f6f7;
+            --card-bg: #ffffff;
+            --text: #2c3e50;
+            --danger: #c0392b;
+            --chart: #2a78d6;      /* validated data color, series 1 */
+            --series2: #eb6834;    /* validated data color, series 2 */
+            --good: #1e8449;
+            --muted: #7f8c8d;
+            --hairline: #e1e0d9;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 30px; }
+
+        /* Toolbar */
+        .toolbar { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .btn-secondary { background: var(--card-bg); color: var(--primary); border: 1px solid var(--primary); }
+        .btn-secondary:hover { background: #eaf2f8; }
+        label.btn-secondary { display: inline-block; padding: 10px 15px; font-size: 16px; border-radius: 4px; cursor: pointer; transition: 0.2s; }
+
+        /* Summary Card */
+        .summary-card {
+            background: linear-gradient(135deg, var(--primary), #2980b9);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .summary-card h2 { margin: 0 0 10px 0; font-size: 1.5em; }
+        .summary-total { font-size: 2.5em; font-weight: bold; margin: 0; }
+        .summary-breakdown { display: flex; justify-content: space-around; margin-top: 20px; font-size: 0.9em; flex-wrap: wrap; gap: 10px; }
+        .summary-item { text-align: center; }
+        .summary-item span { display: block; font-weight: bold; font-size: 1.2em; }
+        .summary-spend { margin-top: 15px; font-size: 0.9em; color: rgba(255,255,255,0.85); }
+        .summary-safe { margin-top: 6px; font-size: 0.9em; color: rgba(255,255,255,0.95); font-weight: bold; }
+
+        /* Sections */
+        .section {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .section h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid var(--bg); padding-bottom: 10px; }
+        .section h3 .h3-extra { float: right; }
+
+        /* Forms and Inputs */
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        input, select {
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 16px;
+            flex: 1;
+            min-width: 100px;
+            box-sizing: border-box;
+        }
+        input[type="date"] { flex: 0 1 160px; }
+        button {
+            padding: 10px 15px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: 0.2s;
+        }
+        button:hover { background-color: #2471a3; }
+        button:disabled { opacity: 0.5; cursor: default; }
+        .btn-danger { background-color: var(--danger); padding: 5px 10px; font-size: 14px; }
+        .btn-danger:hover { background-color: #e74c3c; }
+        .btn-edit { background-color: var(--bg); color: var(--primary); padding: 5px 10px; font-size: 14px; }
+        .btn-edit:hover { background-color: #d6eaf8; }
+        .btn-tiny { padding: 4px 10px; font-size: 13px; }
+
+        /* Lists */
+        ul { list-style: none; padding: 0; margin: 0; }
+        li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: var(--bg);
+            margin-bottom: 8px;
+            border-radius: 4px;
+            border-left: 4px solid var(--secondary);
+        }
+        li.snapshot-row { border-left-color: var(--chart); }
+        li.debt-row { border-left-color: var(--danger); }
+        li.expense-row { border-left-color: var(--danger); }
+        li.income-row { border-left-color: var(--good); }
+        li.goal-row { border-left-color: var(--good); }
+        li.recurring-row { border-left-color: var(--series2); }
+        li.gameyat-row { border-left-color: var(--chart); }
+        li.paused { opacity: 0.55; }
+        .li-info { flex: 1; min-width: 0; }
+        .li-name { font-weight: bold; }
+        .li-detail { font-size: 0.85em; color: #7f8c8d; }
+        .li-value { font-weight: bold; color: var(--primary); margin: 0 15px; white-space: nowrap; }
+        .li-value.expense { color: var(--danger); }
+        .li-value.income { color: var(--good); }
+        .summary-item span.neg { color: var(--danger); }
+        .overdue { color: var(--danger); font-weight: bold; }
+        .li-actions { display: flex; gap: 6px; }
+        .empty { color: #95a5a6; font-style: italic; text-align: center; padding: 12px; background: var(--bg); border-radius: 4px; }
+
+        .rate-section { background: #fdf2e9; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+        .rate-section label { font-weight: bold; color: #e67e22; }
+        .rate-note { font-size: 0.8em; color: var(--muted); margin-top: 8px; }
+
+        .egp-input label { font-weight: bold; display: block; margin-bottom: 10px; }
+
+        /* Month navigation */
+        .month-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .month-label { font-weight: bold; color: var(--primary); font-size: 1.1em; }
+        .month-total { color: var(--danger); font-weight: bold; }
+        .net-pos { color: var(--good); font-weight: bold; }
+        .net-neg { color: var(--danger); font-weight: bold; }
+
+        /* Bills due banner */
+        .bill-banner {
+            background: #fef9e7;
+            border-left: 4px solid var(--secondary);
+            padding: 10px 14px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+        }
+        .bill-banner b { color: var(--text); }
+
+        /* Category breakdown + budgets */
+        .cat-section { margin-top: 5px; }
+        .cat-section h4 { margin: 15px 0 10px 0; color: var(--primary); }
+        .cat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+        .cat-name { flex: 0 0 120px; font-size: 0.9em; color: var(--text); }
+        .cat-bar-track { flex: 1; height: 8px; background: #f0f3f4; border-radius: 4px; }
+        .cat-bar { height: 100%; background: var(--secondary); border-radius: 4px; }
+        .cat-bar.over { background: var(--danger); }
+        .cat-amount { flex: 0 0 150px; text-align: right; font-size: 0.9em; font-weight: bold; color: var(--text); font-variant-numeric: tabular-nums; }
+        .cat-amount .over-mark { color: var(--danger); }
+        .cat-budget { flex: 0 0 90px; min-width: 70px; padding: 4px 6px; font-size: 0.85em; }
+        .budget-hint { font-size: 0.8em; color: var(--muted); margin: 4px 0 0 0; font-weight: normal; }
+
+        /* Progress bars (goals, gameyat) */
+        .prog-track { flex: 1; height: 10px; background: #f0f3f4; border-radius: 5px; overflow: hidden; }
+        .prog-fill { height: 100%; background: var(--good); border-radius: 5px; }
+        .prog-fill.blue { background: var(--chart); }
+        .goal-row { flex-wrap: wrap; }
+        .goal-bar-row { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 6px; }
+        .goal-pct { font-size: 0.85em; font-weight: bold; color: var(--muted); flex: 0 0 44px; text-align: right; }
+
+        /* Sub-blocks inside a section */
+        .sub-block { margin-top: 20px; border-top: 1px solid var(--hairline); padding-top: 15px; }
+        .sub-block h4 { margin: 0 0 10px 0; color: var(--primary); }
+
+        /* Charts */
+        .chart-wrap { position: relative; margin-bottom: 15px; }
+        .chart-wrap svg { display: block; width: 100%; height: auto; outline: none; }
+        .chart-tooltip {
+            position: absolute; pointer-events: none; display: none; z-index: 5;
+            background: var(--card-bg); border: 1px solid #d5dbdb; border-radius: 6px;
+            padding: 8px 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.12); min-width: 130px;
+        }
+        .chart-tooltip .tt-val { font-weight: bold; color: var(--text); }
+        .chart-tooltip .tt-date { font-size: 0.8em; color: var(--muted); margin-top: 2px; }
+        .chart-toggle { display: inline-flex; gap: 0; }
+        .chart-toggle button { padding: 4px 12px; font-size: 13px; background: var(--bg); color: var(--muted); border: 1px solid var(--hairline); border-radius: 0; }
+        .chart-toggle button:first-child { border-radius: 4px 0 0 4px; }
+        .chart-toggle button:last-child { border-radius: 0 4px 4px 0; }
+        .chart-toggle button.on { background: var(--primary); color: white; border-color: var(--primary); }
+        .legend { display: flex; gap: 16px; font-size: 0.8em; color: var(--muted); margin: 0 0 6px 0; }
+        .legend .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+        .mode-badge { font-size: 0.8em; color: var(--muted); background: var(--bg); border: 1px dashed var(--hairline); border-radius: 4px; padding: 5px 10px; margin-right: auto; }
+    </style>
+</head>
+<body>
+
+    <h1>🇪🇬 Wealth Tracker</h1>
+    <p class="subtitle">Personal Financial Situation (EGP)</p>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <span class="mode-badge" id="modeBadge" style="display:none;"></span>
+        <button class="btn-secondary" onclick="downloadExport()">⬇️ Export CSV</button>
+        <label for="importFile" class="btn-secondary">📂 Import CSV</label>
+        <input type="file" id="importFile" accept=".csv" hidden onchange="importCsv(event)">
+        <button onclick="takeSnapshot()">📷 Save Snapshot</button>
+    </div>
+
+    <!-- Total Summary -->
+    <div class="summary-card">
+        <h2>Total Current Wealth</h2>
+        <p class="summary-total" id="grandTotal">0 EGP</p>
+        <div class="summary-breakdown">
+            <div class="summary-item">Loans<span id="sumLoans">0</span></div>
+            <div class="summary-item">Debts<span id="sumDebts" class="neg">0</span></div>
+            <div class="summary-item">Gold<span id="sumGold">0</span></div>
+            <div class="summary-item">USD<span id="sumUsd">0</span></div>
+            <div class="summary-item">EGP Cash<span id="sumEgp">0</span></div>
+        </div>
+        <div class="summary-spend" id="sumSpent"></div>
+        <div class="summary-safe" id="sumSafe" style="display:none;"></div>
+    </div>
+
+    <!-- 1. Loaned Money -->
+    <div class="section">
+        <h3>🤝 Money Lent to People</h3>
+        <div class="input-group">
+            <input type="text" id="loanName" placeholder="Person's Name">
+            <input type="number" id="loanAmount" placeholder="Amount (EGP)">
+            <button onclick="addLoan()">Add</button>
+        </div>
+        <ul id="loanList"></ul>
+    </div>
+
+    <!-- 1b. Debts -->
+    <div class="section">
+        <h3>💳 Money I Owe (Debts)</h3>
+        <div class="input-group">
+            <input type="text" id="debtName" placeholder="Person's Name">
+            <input type="number" id="debtAmount" placeholder="Amount (EGP)">
+            <input type="date" id="debtDue" title="Pay-back date (optional)">
+            <button onclick="addDebt()">Add</button>
+        </div>
+        <ul id="debtList"></ul>
+    </div>
+
+    <!-- 2. Gold -->
+    <div class="section">
+        <h3>🥇 Gold Holdings</h3>
+        <div class="rate-section">
+            <label>Current Gold Prices per Gram (EGP)</label>
+            <div class="input-group" style="margin-top: 10px; margin-bottom: 0;">
+                <input type="number" id="rate18k" placeholder="18k Price/g" oninput="onSettingInput()">
+                <input type="number" id="rate21k" placeholder="21k Price/g" oninput="onSettingInput()">
+                <input type="number" id="rate24k" placeholder="24k Price/g" oninput="onSettingInput()">
+                <button id="fetchRatesBtn" class="btn-edit" style="flex:0 0 auto;" onclick="fetchLiveRates()">🔄 Live prices</button>
+            </div>
+            <div class="rate-note" id="rateNote">Tip: 🔄 fetches live spot prices (needs internet) — shop prices add markup, so adjust as you like.</div>
+        </div>
+        <div class="chart-wrap" id="rateHistoryWrap"></div>
+        <div class="input-group">
+            <input type="text" id="goldItemName" placeholder="Item Name (e.g. Ring)">
+            <input type="number" id="goldWeight" placeholder="Weight (grams)">
+            <select id="goldKarat">
+                <option value="18">18 Karat</option>
+                <option value="21" selected>21 Karat</option>
+                <option value="24">24 Karat</option>
+            </select>
+            <button onclick="addGold()">Add</button>
+        </div>
+        <ul id="goldList"></ul>
+    </div>
+
+    <!-- 3. USD -->
+    <div class="section">
+        <h3>💵 US Dollars (USD)</h3>
+        <div class="rate-section">
+            <label>Current Exchange Rate (USD to EGP)</label>
+            <input type="number" id="usdRate" placeholder="e.g. 48.50" style="width: 100%; margin-top: 10px;" oninput="onSettingInput()">
+        </div>
+        <div class="input-group">
+            <input type="number" id="usdAmount" placeholder="Total USD Amount" oninput="onSettingInput()" style="flex: 2;">
+            <div style="flex: 1; text-align: center; font-weight: bold; padding-top: 10px; color: var(--primary);" id="usdEgpValue">0 EGP</div>
+        </div>
+    </div>
+
+    <!-- 4. EGP Cash -->
+    <div class="section">
+        <h3>💰 Egyptian Pounds (EGP)</h3>
+        <div class="egp-input">
+            <label>Cash &amp; Bank Balances (EGP)</label>
+            <input type="number" id="egpAmount" placeholder="Total EGP Cash" style="width: 100%;" oninput="onSettingInput()">
+        </div>
+    </div>
+
+    <!-- 5. Monthly Costs & Income -->
+    <div class="section">
+        <h3>💸 Monthly Costs &amp; Income</h3>
+        <div class="bill-banner" id="billBanner" style="display:none;"></div>
+        <div class="month-nav">
+            <div>
+                <button class="btn-edit" onclick="shiftMonth(-1)">◀</button>
+                <span class="month-label" id="monthLabel"></span>
+                <button class="btn-edit" onclick="shiftMonth(1)">▶</button>
+            </div>
+            <span>Income: <span class="net-pos" id="monthIncome">0 EGP</span>
+                  · Spent: <span class="month-total" id="monthTotal">0 EGP</span>
+                  · Net: <span id="monthNet">0 EGP</span></span>
+        </div>
+        <div class="input-group">
+            <input type="text" id="expDesc" placeholder="What did you spend on?">
+            <input type="number" id="expAmount" placeholder="Cost (EGP)">
+            <input type="text" id="expCategory" list="categoryList" placeholder="Category">
+            <datalist id="categoryList">
+                <option value="Food"></option>
+                <option value="Transport"></option>
+                <option value="Rent"></option>
+                <option value="Utilities"></option>
+                <option value="Phone/Internet"></option>
+                <option value="Health"></option>
+                <option value="Education"></option>
+                <option value="Family"></option>
+                <option value="Clothes"></option>
+                <option value="Fun"></option>
+                <option value="Other"></option>
+            </datalist>
+            <input type="date" id="expDate">
+            <button onclick="addExpense()">Add</button>
+        </div>
+        <div class="input-group" style="margin-bottom: 10px;">
+            <input type="text" id="expSearch" placeholder="🔍 Search expenses…" oninput="setExpFilter()">
+            <select id="expCatFilter" style="flex: 0 1 200px;" onchange="setExpFilter()">
+                <option value="">All categories</option>
+            </select>
+        </div>
+        <ul id="expenseList"></ul>
+        <div class="cat-section" id="catSection"></div>
+
+        <div class="sub-block">
+            <h4>💵 Income this month</h4>
+            <div class="input-group">
+                <input type="text" id="incDesc" placeholder="Income source detail (e.g. October salary)">
+                <input type="number" id="incAmount" placeholder="Amount (EGP)">
+                <input type="text" id="incSource" list="sourceList" placeholder="Type">
+                <datalist id="sourceList">
+                    <option value="Salary"></option>
+                    <option value="Freelance"></option>
+                    <option value="Business"></option>
+                    <option value="Gift"></option>
+                    <option value="Other"></option>
+                </datalist>
+                <input type="date" id="incDate">
+                <button onclick="addIncome()">Add</button>
+            </div>
+            <ul id="incomeList"></ul>
+        </div>
+
+        <div class="sub-block">
+            <h4>🔁 Recurring bills <span class="budget-hint">(auto-added as expenses on their day each month)</span></h4>
+            <div class="input-group">
+                <input type="text" id="recDesc" placeholder="Bill (e.g. Rent, Phone)">
+                <input type="number" id="recAmount" placeholder="Amount (EGP)">
+                <input type="text" id="recCategory" list="categoryList" placeholder="Category">
+                <input type="number" id="recDay" placeholder="Day of month (1-31)" min="1" max="31" style="flex: 0 1 190px;">
+                <button onclick="addRecurring()">Add</button>
+            </div>
+            <ul id="recurringList"></ul>
+        </div>
+    </div>
+
+    <!-- 6. Savings Goals -->
+    <div class="section">
+        <h3>🎯 Savings Goals</h3>
+        <div class="input-group">
+            <input type="text" id="goalName" placeholder="Goal (e.g. New laptop, Emergency fund)">
+            <input type="number" id="goalTarget" placeholder="Target (EGP)">
+            <input type="date" id="goalDeadline" title="Deadline (optional)">
+            <button onclick="addGoal()">Add</button>
+        </div>
+        <ul id="goalList"></ul>
+    </div>
+
+    <!-- 7. Income vs Spending report -->
+    <div class="section">
+        <h3>📊 Income vs Spending — last 6 months</h3>
+        <div class="chart-wrap" id="reportWrap"></div>
+    </div>
+
+    <!-- 8. Game'yat -->
+    <div class="section">
+        <h3>🤝 Game'yat <span class="budget-hint">(rotating savings — جماعات)</span></h3>
+        <div class="input-group">
+            <input type="text" id="gamName" placeholder="Organizer / group name">
+            <input type="number" id="gamMonthly" placeholder="Monthly amount (EGP)">
+            <input type="number" id="gamMembers" placeholder="Members" min="2">
+            <input type="number" id="gamPosition" placeholder="Your turn (1st, 2nd…)" min="1">
+            <button onclick="addGameyat()">Add</button>
+        </div>
+        <ul id="gameyatList"></ul>
+    </div>
+
+    <!-- 9. Wealth History -->
+    <div class="section">
+        <h3>📈 Wealth History
+            <span class="h3-extra chart-toggle">
+                <button id="curEgp" class="on" onclick="setChartCurrency('EGP')">EGP</button>
+                <button id="curUsd" onclick="setChartCurrency('USD')">USD</button>
+            </span>
+        </h3>
+        <div class="chart-wrap" id="chartWrap"></div>
+        <ul id="snapshotList"></ul>
+    </div>
+
+    <script>
+        // ---- State ----------------------------------------------------------
+        let state = {
+            loans: [], debts: [], gold: [], settings: {}, expenses: [], snapshots: [],
+            budgets: [], goals: [], incomes: [], recurring: [], gameyat: [],
+            rate_history: [], monthly: [],
+        };
+        let viewMonth = (() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); })(); // YYYY-MM, local time
+        let editing = { loan: null, debt: null, gold: null, expense: null, goal: null };
+        let chartCurrency = 'EGP';
+        let expFilter = { text: '', cat: '' };
+
+        // Map input ids to settings keys stored in the DB
+        const SETTING_INPUTS = {
+            rate18k: 'rate18k', rate21k: 'rate21k', rate24k: 'rate24k',
+            usdRate: 'usd_rate', usdAmount: 'usd_amount', egpAmount: 'egp_amount',
+        };
+
+        // ---- Helpers --------------------------------------------------------
+        function formatEGP(num) {
+            return num.toLocaleString('en-EG', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' EGP';
+        }
+
+        function formatUSD(num) {
+            return '$' + num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function formatCompact(n) {
+            const abs = Math.abs(n);
+            if (abs >= 1e6) return (n / 1e6).toFixed(abs >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+            if (abs >= 1e3) return (n / 1e3).toFixed(abs >= 1e4 ? 0 : 1).replace(/\.0$/, '') + 'K';
+            return String(Math.round(n));
+        }
+
+        function esc(s) {
+            return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // For interpolating a user string into a single-quoted JS literal inside an
+        // HTML attribute: JS-escape first, then HTML-escape (decoding restores the JS escape).
+        function jsStr(s) {
+            return esc(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+        }
+
+        // =====================================================================
+        // DATA LAYER — two editions, one file.
+        //   MODE 'server': server.py running (start.bat) — all calls hit Flask.
+        //   MODE 'local':  static hosting (GitHub Pages, Netlify, USB…) — the
+        //                  whole backend below runs in the browser and persists
+        //                  to localStorage. Each visitor's data stays private
+        //                  in their own browser; CSV export/import moves data
+        //                  between browsers and the server edition.
+        // =====================================================================
+        let MODE = 'local'; // confirmed by detectMode() before the first load
+
+        async function api(path, opts = {}) {
+            if (MODE === 'local') return localApi(path, opts);
+            const res = await fetch(path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || res.statusText);
+            return data;
+        }
+
+        async function detectMode() {
+            try {
+                const res = await fetch('/api/state', { headers: { 'Content-Type': 'application/json' } });
+                const data = await res.json();
+                if (res.ok && data && data.totals) return 'server';
+            } catch (e) { /* no Flask here */ }
+            return 'local';
+        }
+
+        // ---- browser-mode backend (a faithful port of server.py) ------------
+        const LS_KEY = 'wt_data_v1';
+        const OZ_TO_GRAM = 31.1034768;
+        const SETTING_KEYS = ['rate18k', 'rate21k', 'rate24k', 'usd_rate', 'usd_amount', 'egp_amount'];
+
+        const pad2 = n => String(n).padStart(2, '0');
+        const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
+        const nowStr = () => { const d = new Date(); return `${todayStr()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+        const num = (v, def = 0.0) => { const n = parseFloat(v); return isNaN(n) ? def : n; };
+        const r2 = v => Math.round(v * 100) / 100;
+
+        function freshModel() {
+            return {
+                loans: [], debts: [], gold_items: [], expenses: [], incomes: [],
+                recurring: [], recurring_skips: [], budgets: [], goals: [], gameyat: [],
+                snapshots: [], rate_history: [], settings: {},
+            };
+        }
+        function dbLoad() {
+            try {
+                const m = JSON.parse(localStorage.getItem(LS_KEY));
+                return Object.assign(freshModel(), m || {});
+            } catch (e) { return freshModel(); }
+        }
+        let storageWarned = false;
+        function dbSave(m) {
+            try { localStorage.setItem(LS_KEY, JSON.stringify(m)); }
+            catch (e) {
+                if (!storageWarned) { storageWarned = true; alert('Could not save data in this browser (storage full or private mode). Export a CSV backup now!'); }
+            }
+        }
+        const nextId = rows => rows.reduce((mx, r) => Math.max(mx, r.id || 0), 0) + 1;
+
+        function materializeRecurring(m) {
+            // walk each active rule month-by-month from its creation month to now
+            const now = new Date(), today = todayStr();
+            for (const rule of m.recurring.filter(r => r.active == 1)) {
+                let y = +String(rule.created_at).slice(0, 4), mo = +String(rule.created_at).slice(5, 7);
+                while (y * 12 + (mo - 1) <= now.getFullYear() * 12 + now.getMonth()) {
+                    const ym = `${String(y).padStart(4, '0')}-${pad2(mo)}`;
+                    const lastDay = new Date(y, mo, 0).getDate();
+                    const due = `${ym}-${pad2(Math.min(rule.day_of_month, lastDay))}`;
+                    if (due <= today) {
+                        const exists = m.expenses.some(e => e.recurring_id === rule.id && (e.spent_on || '').startsWith(ym));
+                        const skipped = m.recurring_skips.some(s => s.recurring_id === rule.id && s.ym === ym);
+                        if (!exists && !skipped) {
+                            m.expenses.push({
+                                id: nextId(m.expenses), description: rule.description, amount: rule.amount,
+                                category: rule.category, spent_on: due, recurring_id: rule.id, created_at: nowStr(),
+                            });
+                        }
+                    }
+                    mo++; if (mo > 12) { mo = 1; y++; }
+                }
+            }
+        }
+
+        function monthlyReport(m, months = 6) {
+            const now = new Date(), out = [];
+            for (let i = months - 1; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const ym = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+                out.push({
+                    ym,
+                    expenses: r2(m.expenses.filter(e => (e.spent_on || '').startsWith(ym)).reduce((s, e) => s + e.amount, 0)),
+                    income: r2(m.incomes.filter(e => (e.received_on || '').startsWith(ym)).reduce((s, e) => s + e.amount, 0)),
+                });
+            }
+            return out;
+        }
+
+        function computeTotals(m) {
+            const s = m.settings;
+            const rates = { 18: num(s.rate18k), 21: num(s.rate21k), 24: num(s.rate24k) };
+            const totalGold = m.gold_items.reduce((sum, g) => sum + g.weight * (rates[g.karat] || 0), 0);
+            const t = {
+                total_loans: r2(m.loans.reduce((s2, l) => s2 + l.amount, 0)),
+                total_debts: r2(m.debts.reduce((s2, d) => s2 + d.amount, 0)),
+                total_gold: r2(totalGold),
+                total_usd: r2(num(s.usd_amount) * num(s.usd_rate)),
+                total_egp: r2(num(s.egp_amount)),
+            };
+            t.grand_total = r2(t.total_loans + t.total_gold + t.total_usd + t.total_egp - t.total_debts);
+            return t;
+        }
+
+        // ---- CSV (same format server.py produces, quoted fields handled) ----
+        const CSV_COLUMNS = ['type', 'name', 'amount', 'weight', 'karat', 'category', 'date',
+            'total_loans', 'total_debts', 'total_gold', 'total_usd', 'total_egp', 'grand_total',
+            'saved_amount', 'day_of_month', 'active', 'members', 'position', 'rounds', 'usd_rate'];
+
+        function csvEscape(v) {
+            const s = String(v ?? '');
+            return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        function csvRow(obj) { return CSV_COLUMNS.map(c => csvEscape(obj[c])).join(','); }
+
+        function parseCsv(text) {
+            const rows = [[]]; let field = '', inQ = false;
+            const t = text.replace(/^﻿/, ''); // strip a UTF-8 BOM if present
+            for (let i = 0; i < t.length; i++) {
+                const c = t[i];
+                if (inQ) {
+                    if (c === '"') { if (t[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+                    else field += c;
+                } else if (c === '"') inQ = true;
+                else if (c === ',') { rows[rows.length - 1].push(field); field = ''; }
+                else if (c === '\n' || c === '\r') {
+                    if (c === '\r' && t[i + 1] === '\n') i++;
+                    rows[rows.length - 1].push(field); field = '';
+                    rows.push([]);
+                } else field += c;
+            }
+            rows[rows.length - 1].push(field);
+            if (rows.length > 1 && rows[rows.length - 1].every(f => f === '')) rows.pop();
+            const header = rows.shift();
+            return rows.map(r => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ''])));
+        }
+
+        function exportCsvText(m) {
+            return CSV_COLUMNS.join(',') + '\r\n' + [
+                ...m.loans.map(r => ({ type: 'loan', name: r.name, amount: r.amount, date: r.created_at })),
+                ...m.debts.map(r => ({ type: 'debt', name: r.name, amount: r.amount, date: r.due_date || '' })),
+                ...m.gold_items.map(r => ({ type: 'gold', name: r.name, weight: r.weight, karat: r.karat, date: r.created_at })),
+                ...m.expenses.map(r => ({ type: 'expense', name: r.description, amount: r.amount, category: r.category, date: r.spent_on })),
+                ...Object.entries(m.settings).filter(([k]) => SETTING_KEYS.includes(k)).map(([k, v]) => ({ type: 'setting', name: k, amount: v })),
+                ...m.snapshots.map(r => ({ type: 'snapshot', date: r.taken_at, total_loans: r.total_loans, total_debts: r.total_debts ?? 0, total_gold: r.total_gold, total_usd: r.total_usd, total_egp: r.total_egp, grand_total: r.grand_total, usd_rate: r.usd_rate ?? '' })),
+                ...m.budgets.map(r => ({ type: 'budget', name: r.category, amount: r.monthly_limit })),
+                ...m.goals.map(r => ({ type: 'goal', name: r.name, amount: r.target_amount, saved_amount: r.saved_amount, date: r.deadline || '' })),
+                ...m.incomes.map(r => ({ type: 'income', name: r.description, amount: r.amount, category: r.source, date: r.received_on })),
+                ...m.recurring.map(r => ({ type: 'recurring', name: r.description, amount: r.amount, category: r.category, day_of_month: r.day_of_month, active: r.active, date: r.created_at })),
+                ...m.gameyat.map(r => ({ type: 'gameyat', name: r.name, amount: r.monthly_amount, members: r.total_members, position: r.my_position, rounds: r.rounds_done })),
+            ].map(csvRow).join('\r\n') + '\r\n';
+        }
+
+        function importCsvText(text) {
+            const m = freshModel();
+            let counts = { loans: 0, debts: 0, gold: 0, expenses: 0, snapshots: 0, budgets: 0, goals: 0, incomes: 0, recurring: 0, gameyat: 0 };
+            for (const row of parseCsv(text)) {
+                const t = (row.type || '').trim().toLowerCase();
+                const name = (row.name || '').trim();
+                if (t === 'loan') { if (name) { m.loans.push({ id: nextId(m.loans), name, amount: num(row.amount) }); counts.loans++; } }
+                else if (t === 'debt') { if (name) { const d = (row.date || '').trim().slice(0, 10); m.debts.push({ id: nextId(m.debts), name, amount: num(row.amount), due_date: d || null, created_at: nowStr() }); counts.debts++; } }
+                else if (t === 'gold') { if (name && ['18', '21', '24'].includes(String(row.karat))) { m.gold_items.push({ id: nextId(m.gold_items), name, weight: num(row.weight), karat: +row.karat, created_at: nowStr() }); counts.gold++; } }
+                else if (t === 'expense') { m.expenses.push({ id: nextId(m.expenses), description: name || 'Expense', amount: num(row.amount), category: (row.category || 'Other').trim() || 'Other', spent_on: (row.date || todayStr()).slice(0, 10), recurring_id: null, created_at: nowStr() }); counts.expenses++; }
+                else if (t === 'setting') { const k = name; if (SETTING_KEYS.includes(k)) m.settings[k] = row.amount ?? ''; }
+                else if (t === 'snapshot') { m.snapshots.push({ id: nextId(m.snapshots), taken_at: (row.date || nowStr()), total_loans: num(row.total_loans), total_gold: num(row.total_gold), total_usd: num(row.total_usd), total_egp: num(row.total_egp), total_debts: num(row.total_debts), grand_total: num(row.grand_total), usd_rate: num(row.usd_rate) || null }); counts.snapshots++; }
+                else if (t === 'budget') { if (name) { m.budgets.push({ category: name, monthly_limit: num(row.amount) }); counts.budgets++; } }
+                else if (t === 'goal') { m.goals.push({ id: nextId(m.goals), name: name || 'Goal', target_amount: num(row.amount), saved_amount: num(row.saved_amount), deadline: (row.date || '').trim() || null, created_at: nowStr() }); counts.goals++; }
+                else if (t === 'income') { m.incomes.push({ id: nextId(m.incomes), description: name || 'Income', amount: num(row.amount), source: (row.category || 'Other').trim() || 'Other', received_on: (row.date || todayStr()).slice(0, 10), created_at: nowStr() }); counts.incomes++; }
+                else if (t === 'recurring') { m.recurring.push({ id: nextId(m.recurring), description: name || 'Bill', amount: num(row.amount), category: (row.category || 'Other').trim() || 'Other', day_of_month: Math.min(31, Math.max(1, Math.round(num(row.day_of_month, 1)))), active: row.active === '' ? 1 : Math.round(num(row.active, 1)) ? 1 : 0, created_at: nowStr() }); counts.recurring++; }
+                else if (t === 'gameyat') { m.gameyat.push({ id: nextId(m.gameyat), name: name || 'Gameya', monthly_amount: num(row.amount), total_members: Math.max(2, Math.round(num(row.members, 2))), my_position: Math.max(1, Math.round(num(row.position, 1))), rounds_done: Math.round(num(row.rounds)), created_at: nowStr() }); counts.gameyat++; }
+            }
+            // Relink expenses to their recurring rules (the CSV doesn't carry recurring_id)
+            for (const rule of m.recurring) {
+                for (const e of m.expenses) {
+                    if (e.recurring_id === null && e.description === rule.description) e.recurring_id = rule.id;
+                }
+            }
+            materializeRecurring(m);
+            return { model: m, imported: counts };
+        }
+
+        // ---- the router: every route server.py exposes ----------------------
+        async function localApi(path, opts = {}) {
+            const method = (opts.method || 'GET').toUpperCase();
+            const data = opts.body ? JSON.parse(opts.body) : {};
+            const m = dbLoad();
+            const seg = path.split('?')[0].split('/').filter(Boolean); // ['api', ...]
+            const r404 = () => { throw new Error('Not found'); };
+            let result;
+
+            if (path === '/api/state') {
+                materializeRecurring(m); dbSave(m);
+                return {
+                    loans: m.loans,
+                    debts: m.debts,
+                    gold: m.gold_items,
+                    settings: m.settings,
+                    expenses: [...m.expenses].sort((a, b) => (a.spent_on < b.spent_on ? 1 : a.spent_on > b.spent_on ? -1 : b.id - a.id)),
+                    snapshots: [...m.snapshots].sort((a, b) => (a.taken_at < b.taken_at ? -1 : a.taken_at > b.taken_at ? 1 : a.id - b.id)),
+                    totals: computeTotals(m),
+                    budgets: [...m.budgets].sort((a, b) => a.category.localeCompare(b.category)),
+                    goals: m.goals,
+                    incomes: [...m.incomes].sort((a, b) => (a.received_on < b.received_on ? 1 : a.received_on > b.received_on ? -1 : b.id - a.id)),
+                    recurring: [...m.recurring].sort((a, b) => a.day_of_month - b.day_of_month || a.id - b.id),
+                    gameyat: m.gameyat,
+                    rate_history: [...m.rate_history].sort((a, b) => (a.date < b.date ? -1 : 1)),
+                    monthly: monthlyReport(m, 6),
+                };
+            }
+
+            const id = +seg[2];
+            if (seg[1] === 'loans') {
+                if (method === 'POST') {
+                    if (!data.name?.trim() || !(num(data.amount) > 0)) throw new Error('Please provide a name and a positive amount');
+                    const row = { id: nextId(m.loans), name: data.name.trim(), amount: num(data.amount), created_at: nowStr() };
+                    m.loans.push(row); result = row;
+                } else {
+                    const row = m.loans.find(l => l.id === id) || r404();
+                    if (method === 'PUT') {
+                        row.name = (data.name ?? row.name).trim(); row.amount = num(data.amount, row.amount);
+                        if (!row.name || !(row.amount > 0)) throw new Error('Please provide a name and a positive amount');
+                        result = row;
+                    } else m.loans = m.loans.filter(l => l.id !== id), result = { ok: true };
+                }
+            }
+            else if (seg[1] === 'debts') {
+                if (method === 'POST') {
+                    if (!data.name?.trim() || !(num(data.amount) > 0)) throw new Error('Please provide a name and a positive amount');
+                    const due = (data.due_date || '').trim().slice(0, 10);
+                    if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('Due date must be YYYY-MM-DD');
+                    const row = { id: nextId(m.debts), name: data.name.trim(), amount: num(data.amount), due_date: due || null, created_at: nowStr() };
+                    m.debts.push(row); result = row;
+                } else {
+                    const row = m.debts.find(d => d.id === id) || r404();
+                    if (method === 'PUT') {
+                        row.name = (data.name ?? row.name).trim(); row.amount = num(data.amount, row.amount);
+                        if (!row.name || !(row.amount > 0)) throw new Error('Please provide a name and a positive amount');
+                        if ('due_date' in data) {
+                            const due = (data.due_date || '').trim().slice(0, 10);
+                            if (due && !/^\d{4}-\d{2}-\d{2}$/.test(due)) throw new Error('Due date must be YYYY-MM-DD');
+                            row.due_date = due || null;
+                        }
+                        result = row;
+                    } else m.debts = m.debts.filter(d => d.id !== id), result = { ok: true };
+                }
+            }
+            else if (seg[1] === 'gold') {
+                if (method === 'POST') {
+                    if (!data.name?.trim() || !(num(data.weight) > 0)) throw new Error('Please provide an item name and a positive weight');
+                    if (!['18', '21', '24'].includes(String(data.karat))) throw new Error('Karat must be 18, 21 or 24');
+                    const row = { id: nextId(m.gold_items), name: data.name.trim(), weight: num(data.weight), karat: +data.karat, created_at: nowStr() };
+                    m.gold_items.push(row); result = row;
+                } else {
+                    const row = m.gold_items.find(g => g.id === id) || r404();
+                    if (method === 'PUT') {
+                        row.name = (data.name ?? row.name).trim(); row.weight = num(data.weight, row.weight);
+                        if (!row.name || !(row.weight > 0)) throw new Error('Please provide an item name and a positive weight');
+                        if (data.karat !== undefined) {
+                            if (!['18', '21', '24'].includes(String(data.karat))) throw new Error('Karat must be 18, 21 or 24');
+                            row.karat = +data.karat;
+                        }
+                        result = row;
+                    } else m.gold_items = m.gold_items.filter(g => g.id !== id), result = { ok: true };
+                }
+            }
+            else if (seg[1] === 'settings' && method === 'PUT') {
+                for (const key of SETTING_KEYS) {
+                    if (key in data) {
+                        const v = data[key];
+                        if (v === null || v === '') m.settings[key] = '';
+                        else {
+                            const n = parseFloat(v);
+                            if (isNaN(n) || n < 0) throw new Error(`Invalid value for ${key}`);
+                            m.settings[key] = String(n);
+                        }
+                    }
+                }
+                result = { ok: true };
+            }
+            else if (seg[1] === 'expenses') {
+                if (method === 'POST') {
+                    if (!data.description?.trim() || !(num(data.amount) > 0)) throw new Error('Please provide a description and a positive amount');
+                    const row = {
+                        id: nextId(m.expenses), description: data.description.trim(), amount: num(data.amount),
+                        category: (data.category || 'Other').trim() || 'Other',
+                        spent_on: (data.spent_on || todayStr()).slice(0, 10), recurring_id: null, created_at: nowStr(),
+                    };
+                    m.expenses.push(row); result = row;
+                } else {
+                    const row = m.expenses.find(e => e.id === id) || r404();
+                    if (method === 'PUT') {
+                        row.description = (data.description ?? row.description).trim(); row.amount = num(data.amount, row.amount);
+                        row.category = (data.category ?? row.category).trim() || 'Other';
+                        row.spent_on = (data.spent_on ?? row.spent_on).slice(0, 10);
+                        if (!row.description || !(row.amount > 0)) throw new Error('Please provide a description and a positive amount');
+                        result = row;
+                    } else {
+                        if (row.recurring_id) m.recurring_skips.push({ recurring_id: row.recurring_id, ym: row.spent_on.slice(0, 7) }); // tombstone
+                        m.expenses = m.expenses.filter(e => e.id !== id); result = { ok: true };
+                    }
+                }
+            }
+            else if (seg[1] === 'incomes') {
+                if (method === 'POST') {
+                    if (!data.description?.trim() || !(num(data.amount) > 0)) throw new Error('Please provide a description and a positive amount');
+                    const row = { id: nextId(m.incomes), description: data.description.trim(), amount: num(data.amount), source: (data.source || 'Other').trim() || 'Other', received_on: (data.received_on || todayStr()).slice(0, 10), created_at: nowStr() };
+                    m.incomes.push(row); result = row;
+                } else { m.incomes = m.incomes.filter(i => i.id !== id); result = { ok: true }; }
+            }
+            else if (seg[1] === 'recurring') {
+                if (method === 'POST') {
+                    const day = Math.round(num(data.day_of_month, 1));
+                    if (!data.description?.trim() || !(num(data.amount) > 0)) throw new Error('Please provide a description and a positive amount');
+                    if (!(day >= 1 && day <= 31)) throw new Error('Day of month must be between 1 and 31');
+                    const row = { id: nextId(m.recurring), description: data.description.trim(), amount: num(data.amount), category: (data.category || 'Other').trim() || 'Other', day_of_month: day, active: 1, created_at: nowStr() };
+                    m.recurring.push(row); materializeRecurring(m); result = row;
+                } else if (method === 'PUT') {
+                    const row = m.recurring.find(r => r.id === id) || r404();
+                    row.active = data.active ? 1 : 0;
+                    materializeRecurring(m); result = row;
+                } else {
+                    for (const e of m.expenses) if (e.recurring_id === id) e.recurring_id = null; // FK ON DELETE SET NULL
+                    m.recurring = m.recurring.filter(r => r.id !== id); result = { ok: true };
+                }
+            }
+            else if (seg[1] === 'budgets' && method === 'POST') {
+                const cat = (data.category || '').trim();
+                if (!cat) throw new Error('Please provide a category');
+                const limit = num(data.monthly_limit);
+                if (limit < 0) throw new Error('Budget cannot be negative');
+                m.budgets = m.budgets.filter(b => b.category !== cat);
+                if (limit > 0) m.budgets.push({ category: cat, monthly_limit: limit });
+                result = { ok: true };
+            }
+            else if (seg[1] === 'goals') {
+                if (method === 'POST') {
+                    if (!data.name?.trim() || !(num(data.target_amount) > 0)) throw new Error('Please provide a name and a positive target amount');
+                    const deadline = (data.deadline || '').trim();
+                    if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) throw new Error('Deadline must be YYYY-MM-DD');
+                    const row = { id: nextId(m.goals), name: data.name.trim(), target_amount: num(data.target_amount), saved_amount: 0, deadline: deadline || null, created_at: nowStr() };
+                    m.goals.push(row); result = row;
+                } else {
+                    const row = m.goals.find(g => g.id === id) || r404();
+                    if (method === 'PUT') {
+                        row.name = (data.name ?? row.name).trim();
+                        row.target_amount = num(data.target_amount, row.target_amount);
+                        row.saved_amount = num(data.saved_amount, row.saved_amount);
+                        const deadline = (data.deadline ?? row.deadline ?? '').trim();
+                        if (!row.name || !(row.target_amount > 0)) throw new Error('Please provide a name and a positive target amount');
+                        if (row.saved_amount < 0) throw new Error('Saved amount cannot be negative');
+                        if (deadline && !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) throw new Error('Deadline must be YYYY-MM-DD');
+                        row.deadline = deadline || null;
+                        result = row;
+                    } else { m.goals = m.goals.filter(g => g.id !== id); result = { ok: true }; }
+                }
+            }
+            else if (seg[1] === 'gameyat') {
+                if (seg[3] === 'advance') { // POST /api/gameyat/<id>/advance — checked before the generic POST
+                    const row = m.gameyat.find(g => g.id === id) || r404();
+                    row.rounds_done = Math.min(row.rounds_done + 1, row.total_members); result = row;
+                } else if (method === 'POST') {
+                    const members = Math.round(num(data.total_members, 0)), position = Math.round(num(data.my_position, 0));
+                    if (!data.name?.trim() || !(num(data.monthly_amount) > 0)) throw new Error('Please provide a name and a positive monthly amount');
+                    if (members < 2 || position < 1 || position > members) throw new Error('Members must be ≥ 2 and position between 1 and members');
+                    const row = { id: nextId(m.gameyat), name: data.name.trim(), monthly_amount: num(data.monthly_amount), total_members: members, my_position: position, rounds_done: 0, created_at: nowStr() };
+                    m.gameyat.push(row); result = row;
+                } else { m.gameyat = m.gameyat.filter(g => g.id !== id); result = { ok: true }; }
+            }
+            else if (seg[1] === 'snapshots') {
+                if (method === 'POST') {
+                    const t = computeTotals(m);
+                    const row = { id: nextId(m.snapshots), taken_at: nowStr(), ...t, usd_rate: num(m.settings.usd_rate) || null };
+                    m.snapshots.push(row); result = row;
+                } else { m.snapshots = m.snapshots.filter(s => s.id !== id); result = { ok: true }; }
+            }
+            else if (seg[1] === 'rates' && seg[2] === 'fetch' && method === 'POST') {
+                const spot = await (await fetch('https://api.gold-api.com/price/XAU')).json();
+                const fx = await (await fetch('https://open.er-api.com/v6/latest/USD')).json();
+                const xauUsd = num(spot.price, 0), usdEgp = num((fx.rates || {}).EGP, 0);
+                if (!xauUsd || !usdEgp) throw new Error('Live price services returned unexpected data');
+                const rate24 = Math.round(xauUsd / OZ_TO_GRAM * usdEgp);
+                const rate21 = Math.round(rate24 * 0.875), rate18 = Math.round(rate24 * 0.75);
+                const usdRate = Math.round(usdEgp * 100) / 100;
+                m.settings.rate18k = String(rate18); m.settings.rate21k = String(rate21);
+                m.settings.rate24k = String(rate24); m.settings.usd_rate = String(usdRate);
+                const today = todayStr();
+                m.rate_history = m.rate_history.filter(h => h.date !== today);
+                m.rate_history.push({ date: today, rate18k: rate18, rate21k: rate21, rate24k: rate24, usd_rate: usdRate });
+                result = { spot_usd_oz: xauUsd, usd_egp: usdRate, rate18k: rate18, rate21k: rate21, rate24k: rate24 };
+            }
+            else if (seg[1] === 'import' && method === 'POST') {
+                const { model, imported } = importCsvText(opts.csvText || '');
+                dbSave(model); // import replaces everything
+                return { ok: true, imported };
+            }
+            else return r404();
+
+            dbSave(m);
+            return result;
+        }
+
+
+        function niceTicks(lo, hi, count = 4) {
+            const span = (hi - lo) || 1;
+            const mag = Math.pow(10, Math.floor(Math.log10(span / count)));
+            const norm = (span / count) / mag;
+            const step = (norm >= 5 ? 5 : norm >= 2.5 ? 2.5 : norm >= 2 ? 2 : 1) * mag;
+            const ticks = [];
+            for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) ticks.push(v);
+            return { ticks, step };
+        }
+
+        // Tick label needs enough precision to stay distinct from its neighbours
+        function formatTick(v, step) {
+            if (step >= 1000) return formatCompact(v);
+            return (v / 1000).toFixed(1) + 'K';
+        }
+
+        const TOOLTIP_HTML = '<div class="chart-tooltip"><div class="tt-val"></div><div class="tt-date"></div></div>';
+
+        // ---- Load everything ------------------------------------------------
+        async function loadState() {
+            state = await api('/api/state');
+            for (const [id, key] of Object.entries(SETTING_INPUTS)) {
+                document.getElementById(id).value = state.settings[key] ?? '';
+            }
+            renderLoans();
+            renderDebts();
+            renderGold();
+            renderExpenses();
+            renderRecurring();
+            renderSnapshots();
+            renderGoals();
+            renderGameyat();
+            renderReport();
+            renderRateHistory();
+            calculateTotals();
+        }
+
+        // ---- Settings (rates & amounts, auto-saved debounced) ----------------
+        let settingsTimer = null;
+        function onSettingInput() {
+            calculateTotals();
+            clearTimeout(settingsTimer);
+            settingsTimer = setTimeout(flushSettings, 600);
+        }
+
+        async function flushSettings() {
+            clearTimeout(settingsTimer);
+            const payload = {};
+            for (const [id, key] of Object.entries(SETTING_INPUTS)) {
+                payload[key] = document.getElementById(id).value;
+            }
+            try { await api('/api/settings', { method: 'PUT', body: JSON.stringify(payload) }); }
+            catch (e) { alert('Could not save: ' + e.message); }
+        }
+
+        // ---- LOANS LOGIC ----------------------------------------------------
+        async function addLoan() {
+            const name = document.getElementById('loanName').value.trim();
+            const amount = parseFloat(document.getElementById('loanAmount').value);
+            if (!name || !amount) return alert("Please enter name and amount");
+            try {
+                state.loans.push(await api('/api/loans', { method: 'POST', body: JSON.stringify({ name, amount }) }));
+                document.getElementById('loanName').value = '';
+                document.getElementById('loanAmount').value = '';
+                renderLoans();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteLoan(id) {
+            try {
+                await api('/api/loans/' + id, { method: 'DELETE' });
+                state.loans = state.loans.filter(l => l.id !== id);
+                renderLoans();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function saveLoan(id) {
+            const name = document.getElementById('editLoanName').value.trim();
+            const amount = parseFloat(document.getElementById('editLoanAmount').value);
+            if (!name || !amount) return alert("Please enter name and amount");
+            try {
+                const updated = await api('/api/loans/' + id, { method: 'PUT', body: JSON.stringify({ name, amount }) });
+                state.loans = state.loans.map(l => l.id === id ? updated : l);
+                editing.loan = null;
+                renderLoans();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderLoans() {
+            const list = document.getElementById('loanList');
+            list.innerHTML = '';
+            if (!state.loans.length) {
+                list.innerHTML = '<li class="empty">No loans tracked yet.</li>';
+                calculateTotals();
+                return;
+            }
+            state.loans.forEach(loan => {
+                if (editing.loan === loan.id) {
+                    list.innerHTML += `
+                        <li>
+                            <input type="text" id="editLoanName" value="${esc(loan.name)}" style="flex:2;">
+                            <input type="number" id="editLoanAmount" value="${loan.amount}" style="flex:1;">
+                            <div class="li-actions">
+                                <button onclick="saveLoan(${loan.id})">✓</button>
+                                <button class="btn-danger" onclick="editing.loan=null;renderLoans()">✕</button>
+                            </div>
+                        </li>`;
+                } else {
+                    list.innerHTML += `
+                        <li>
+                            <div class="li-info"><span class="li-name">${esc(loan.name)}</span></div>
+                            <div class="li-value">${formatEGP(loan.amount)}</div>
+                            <div class="li-actions">
+                                <button class="btn-edit" onclick="editing.loan=${loan.id};renderLoans()">✏️</button>
+                                <button class="btn-danger" onclick="deleteLoan(${loan.id})">X</button>
+                            </div>
+                        </li>`;
+                }
+            });
+            calculateTotals();
+        }
+
+        // ---- DEBTS LOGIC ----------------------------------------------------
+        async function addDebt() {
+            const name = document.getElementById('debtName').value.trim();
+            const amount = parseFloat(document.getElementById('debtAmount').value);
+            const due_date = document.getElementById('debtDue').value;
+            if (!name || !amount) return alert("Please enter name and amount");
+            try {
+                state.debts.push(await api('/api/debts', { method: 'POST', body: JSON.stringify({ name, amount, due_date }) }));
+                document.getElementById('debtName').value = '';
+                document.getElementById('debtAmount').value = '';
+                document.getElementById('debtDue').value = '';
+                renderDebts();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteDebt(id) {
+            try {
+                await api('/api/debts/' + id, { method: 'DELETE' });
+                state.debts = state.debts.filter(d => d.id !== id);
+                renderDebts();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function saveDebt(id) {
+            const name = document.getElementById('editDebtName').value.trim();
+            const amount = parseFloat(document.getElementById('editDebtAmount').value);
+            const due_date = document.getElementById('editDebtDue').value;
+            if (!name || !amount) return alert("Please enter name and amount");
+            try {
+                const updated = await api('/api/debts/' + id, { method: 'PUT', body: JSON.stringify({ name, amount, due_date }) });
+                state.debts = state.debts.map(d => d.id === id ? updated : d);
+                editing.debt = null;
+                renderDebts();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderDebts() {
+            const list = document.getElementById('debtList');
+            list.innerHTML = '';
+            if (!state.debts.length) {
+                list.innerHTML = '<li class="empty">No debts — lucky you! 😌</li>';
+                calculateTotals();
+                return;
+            }
+            const today = todayStr();
+            state.debts.forEach(debt => {
+                const overdue = debt.due_date && debt.due_date < today;
+                const dueHtml = debt.due_date
+                    ? `<div class="li-detail ${overdue ? 'overdue' : ''}">${overdue ? '⚠ overdue — ' : 'due '}${esc(debt.due_date)}</div>`
+                    : '';
+                if (editing.debt === debt.id) {
+                    list.innerHTML += `
+                        <li class="debt-row">
+                            <input type="text" id="editDebtName" value="${esc(debt.name)}" style="flex:2;">
+                            <input type="number" id="editDebtAmount" value="${debt.amount}" style="flex:1;">
+                            <input type="date" id="editDebtDue" value="${esc(debt.due_date || '')}">
+                            <div class="li-actions">
+                                <button onclick="saveDebt(${debt.id})">✓</button>
+                                <button class="btn-danger" onclick="editing.debt=null;renderDebts()">✕</button>
+                            </div>
+                        </li>`;
+                } else {
+                    list.innerHTML += `
+                        <li class="debt-row">
+                            <div class="li-info"><span class="li-name">${esc(debt.name)}</span>${dueHtml}</div>
+                            <div class="li-value expense">${formatEGP(debt.amount)}</div>
+                            <div class="li-actions">
+                                <button class="btn-edit" onclick="editing.debt=${debt.id};renderDebts()">✏️</button>
+                                <button class="btn-danger" onclick="deleteDebt(${debt.id})">X</button>
+                            </div>
+                        </li>`;
+                }
+            });
+            calculateTotals();
+        }
+
+        // ---- GOLD LOGIC -----------------------------------------------------
+        async function addGold() {
+            const name = document.getElementById('goldItemName').value.trim();
+            const weight = parseFloat(document.getElementById('goldWeight').value);
+            const karat = document.getElementById('goldKarat').value;
+            if (!name || !weight) return alert("Please enter item name and weight");
+            try {
+                state.gold.push(await api('/api/gold', { method: 'POST', body: JSON.stringify({ name, weight, karat }) }));
+                document.getElementById('goldItemName').value = '';
+                document.getElementById('goldWeight').value = '';
+                renderGold();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteGold(id) {
+            try {
+                await api('/api/gold/' + id, { method: 'DELETE' });
+                state.gold = state.gold.filter(g => g.id !== id);
+                renderGold();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function saveGold(id) {
+            const name = document.getElementById('editGoldName').value.trim();
+            const weight = parseFloat(document.getElementById('editGoldWeight').value);
+            const karat = document.getElementById('editGoldKarat').value;
+            if (!name || !weight) return alert("Please enter item name and weight");
+            try {
+                const updated = await api('/api/gold/' + id, { method: 'PUT', body: JSON.stringify({ name, weight, karat }) });
+                state.gold = state.gold.map(g => g.id === id ? updated : g);
+                editing.gold = null;
+                renderGold();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderGold() {
+            const list = document.getElementById('goldList');
+            list.innerHTML = '';
+            if (!state.gold.length) {
+                list.innerHTML = '<li class="empty">No gold items tracked yet.</li>';
+                calculateTotals();
+                return;
+            }
+            state.gold.forEach(item => {
+                if (editing.gold === item.id) {
+                    list.innerHTML += `
+                        <li>
+                            <input type="text" id="editGoldName" value="${esc(item.name)}" style="flex:2;">
+                            <input type="number" id="editGoldWeight" value="${item.weight}" style="flex:1;" step="0.1">
+                            <select id="editGoldKarat" style="flex:1;">
+                                ${[18, 21, 24].map(k => `<option value="${k}" ${item.karat == k ? 'selected' : ''}>${k} Karat</option>`).join('')}
+                            </select>
+                            <div class="li-actions">
+                                <button onclick="saveGold(${item.id})">✓</button>
+                                <button class="btn-danger" onclick="editing.gold=null;renderGold()">✕</button>
+                            </div>
+                        </li>`;
+                } else {
+                    list.innerHTML += `
+                        <li>
+                            <div class="li-info">
+                                <span class="li-name">${esc(item.name)}</span>
+                                <span class="li-detail">${item.weight}g - ${item.karat}k</span>
+                            </div>
+                            <div class="li-actions">
+                                <button class="btn-edit" onclick="editing.gold=${item.id};renderGold()">✏️</button>
+                                <button class="btn-danger" onclick="deleteGold(${item.id})">X</button>
+                            </div>
+                        </li>`;
+                }
+            });
+            calculateTotals();
+        }
+
+        // ---- LIVE RATES + RATE HISTORY ----------------------------------------
+        async function fetchLiveRates() {
+            const btn = document.getElementById('fetchRatesBtn');
+            const note = document.getElementById('rateNote');
+            btn.disabled = true;
+            btn.textContent = '⏳ Fetching…';
+            try {
+                const r = await api('/api/rates/fetch', { method: 'POST' });
+                clearTimeout(settingsTimer); // don't let a pending autosave overwrite the fetched values
+                document.getElementById('rate18k').value = r.rate18k;
+                document.getElementById('rate21k').value = r.rate21k;
+                document.getElementById('rate24k').value = r.rate24k;
+                document.getElementById('usdRate').value = r.usd_egp;
+                calculateTotals();
+                note.textContent = `Live spot: gold $${r.spot_usd_oz.toLocaleString()}/oz · $1 = ${r.usd_egp} EGP → 24k ${r.rate24k.toLocaleString()} EGP/g (spot estimate — shop prices add markup).`;
+                const today = todayStr();
+                const row = { date: today, rate18k: r.rate18k, rate21k: r.rate21k, rate24k: r.rate24k, usd_rate: r.usd_egp };
+                state.rate_history = state.rate_history.filter(h => h.date !== today).concat(row).sort((a, b) => a.date < b.date ? -1 : 1);
+                renderRateHistory();
+            } catch (e) {
+                note.textContent = 'Could not fetch live prices: ' + e.message;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Live prices';
+            }
+        }
+
+        function renderRateHistory() {
+            const wrap = document.getElementById('rateHistoryWrap');
+            const rows = state.rate_history;
+            if (rows.length < 2) { wrap.innerHTML = ''; return; }
+
+            const W = 640, H = 96, L = 10, R = 120, T = 10, B = 18;
+            const pw = W - L - R, ph = H - T - B;
+            const vals = rows.map(r => r.rate21k);
+            let lo = Math.min(...vals), hi = Math.max(...vals);
+            if (hi === lo) { lo *= 0.98; hi *= 1.02; }
+            const pad = (hi - lo) * 0.1;
+            lo -= pad; hi += pad;
+            const X = i => L + i / (rows.length - 1) * pw;
+            const Y = v => T + (1 - (v - lo) / (hi - lo)) * ph;
+            const pts = vals.map((v, i) => [X(i), Y(v)]);
+            const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+            const last = pts[pts.length - 1];
+            const fmtD = d => new Date(d + 'T00:00').toLocaleDateString('en-EG', { day: 'numeric', month: 'short' });
+
+            wrap.innerHTML = TOOLTIP_HTML + `
+                <svg viewBox="0 0 ${W} ${H}" aria-label="21k gold price history">
+                    <text x="${L}" y="${T - 2}" fill="#7f8c8d" font-size="10">21k price history (EGP/g)</text>
+                    <path d="${line}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                    ${pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.5" fill="#2a78d6" stroke="#ffffff" stroke-width="1.5"/>`).join('')}
+                    <text x="${last[0] + 8}" y="${last[1] + 3.5}" fill="#2c3e50" font-size="12" font-weight="600">${vals[vals.length - 1].toLocaleString()}</text>
+                    <text x="${L}" y="${H - 5}" fill="#7f8c8d" font-size="10">${fmtD(rows[0].date)}</text>
+                    <text x="${L + pw}" y="${H - 5}" text-anchor="end" fill="#7f8c8d" font-size="10">${fmtD(rows[rows.length - 1].date)}</text>
+                    <rect x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent" style="cursor:crosshair" id="rateHit"/>
+                </svg>`;
+
+            const svg = wrap.querySelector('svg');
+            const tip = wrap.querySelector('.chart-tooltip');
+            const ttVal = tip.querySelector('.tt-val');
+            const ttDate = tip.querySelector('.tt-date');
+            svg.querySelector('#rateHit').addEventListener('pointermove', e => {
+                const rect = svg.getBoundingClientRect();
+                const px = (e.clientX - rect.left) * W / rect.width;
+                let best = 0, bestDist = Infinity;
+                pts.forEach((p, i) => {
+                    const d = Math.abs(p[0] - px);
+                    if (d < bestDist) { bestDist = d; best = i; }
+                });
+                const r = rows[best];
+                ttVal.textContent = `21k ${r.rate21k.toLocaleString()} EGP/g`;
+                ttDate.textContent = `${fmtD(r.date)} · 18k ${r.rate18k.toLocaleString()} · 24k ${r.rate24k.toLocaleString()} · $1 = ${r.usd_rate}`;
+                tip.style.display = 'block';
+                const cssX = pts[best][0] / W * rect.width, cssY = pts[best][1] / H * rect.height;
+                const tw = tip.offsetWidth;
+                tip.style.left = (cssX + 12 + tw > rect.width ? cssX - tw - 12 : cssX + 12) + 'px';
+                tip.style.top = Math.max(0, cssY - 14) + 'px';
+            });
+            svg.querySelector('#rateHit').addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+        }
+
+        // ---- EXPENSES LOGIC (monthly cost calculator) -------------------------
+        function monthLabel(ym = viewMonth) {
+            const [y, m] = ym.split('-').map(Number);
+            return new Date(y, m - 1, 1).toLocaleDateString('en-EG', { month: 'long', year: 'numeric' });
+        }
+
+        function shiftMonth(delta) {
+            const [y, m] = viewMonth.split('-').map(Number);
+            const d = new Date(y, m - 1 + delta, 1);
+            viewMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            renderExpenses();
+        }
+
+        function expensesForMonth() {
+            return state.expenses.filter(e => (e.spent_on || '').startsWith(viewMonth));
+        }
+
+        function setExpFilter() {
+            expFilter.text = document.getElementById('expSearch').value.trim().toLowerCase();
+            expFilter.cat = document.getElementById('expCatFilter').value;
+            renderExpenses();
+        }
+
+        async function addExpense() {
+            const description = document.getElementById('expDesc').value.trim();
+            const amount = parseFloat(document.getElementById('expAmount').value);
+            const category = document.getElementById('expCategory').value.trim() || 'Other';
+            const spent_on = document.getElementById('expDate').value;
+            if (!description || !amount) return alert("Please enter a description and amount");
+            try {
+                state.expenses.push(await api('/api/expenses', { method: 'POST', body: JSON.stringify({ description, amount, category, spent_on }) }));
+                document.getElementById('expDesc').value = '';
+                document.getElementById('expAmount').value = '';
+                document.getElementById('expCategory').value = '';
+                renderExpenses();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteExpense(id) {
+            try {
+                await api('/api/expenses/' + id, { method: 'DELETE' });
+                state.expenses = state.expenses.filter(e => e.id !== id);
+                renderExpenses();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function saveExpense(id) {
+            const description = document.getElementById('editExpDesc').value.trim();
+            const amount = parseFloat(document.getElementById('editExpAmount').value);
+            const category = document.getElementById('editExpCategory').value.trim() || 'Other';
+            const spent_on = document.getElementById('editExpDate').value;
+            if (!description || !amount) return alert("Please enter a description and amount");
+            try {
+                const updated = await api('/api/expenses/' + id, { method: 'PUT', body: JSON.stringify({ description, amount, category, spent_on }) });
+                state.expenses = state.expenses.map(e => e.id === id ? updated : e);
+                editing.expense = null;
+                renderExpenses();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderExpenses() {
+            document.getElementById('monthLabel').innerText = monthLabel();
+            document.getElementById('expDate').value ||= viewMonth + '-' + String(new Date().getDate()).padStart(2, '0');
+
+            const items = expensesForMonth();
+            const total = items.reduce((s, e) => s + e.amount, 0);
+
+            // Income / net line
+            const incItems = state.incomes.filter(i => (i.received_on || '').startsWith(viewMonth));
+            const incTotal = incItems.reduce((s, i) => s + i.amount, 0);
+            const net = incTotal - total;
+            document.getElementById('monthIncome').innerText = formatEGP(incTotal);
+            document.getElementById('monthTotal').innerText = formatEGP(total);
+            const netEl = document.getElementById('monthNet');
+            netEl.innerText = (net >= 0 ? '+' : '') + formatEGP(net);
+            netEl.className = net >= 0 ? 'net-pos' : 'net-neg';
+
+            document.getElementById('sumSpent').innerText = `💸 Spent in ${monthLabel()}: ${formatEGP(total)}`;
+            calculateSafeToSpend();
+            renderBillBanner();
+            renderIncomes(incItems);
+
+            // Category filter options (categories present this month)
+            const catsThisMonth = [...new Set(items.map(e => e.category))].sort();
+            const sel = document.getElementById('expCatFilter');
+            const prev = expFilter.cat;
+            sel.innerHTML = '<option value="">All categories</option>' + catsThisMonth.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+            if (catsThisMonth.includes(prev)) sel.value = prev; else expFilter.cat = '';
+
+            // Filtered list
+            const shown = items.filter(e =>
+                (!expFilter.cat || e.category === expFilter.cat) &&
+                (!expFilter.text || (e.description + ' ' + e.category).toLowerCase().includes(expFilter.text)));
+
+            const list = document.getElementById('expenseList');
+            list.innerHTML = '';
+            if (!items.length) {
+                list.innerHTML = `<li class="empty">No costs recorded in ${monthLabel()}.</li>`;
+            } else if (!shown.length) {
+                list.innerHTML = `<li class="empty">No expenses match your search.</li>`;
+            }
+            shown.forEach(exp => {
+                if (editing.expense === exp.id) {
+                    list.innerHTML += `
+                        <li style="flex-wrap: wrap;">
+                            <input type="text" id="editExpDesc" value="${esc(exp.description)}" style="flex:2;">
+                            <input type="number" id="editExpAmount" value="${exp.amount}" style="flex:1;">
+                            <input type="text" id="editExpCategory" list="categoryList" value="${esc(exp.category)}" style="flex:1;">
+                            <input type="date" id="editExpDate" value="${esc(exp.spent_on)}" style="flex:1;">
+                            <div class="li-actions">
+                                <button onclick="saveExpense(${exp.id})">✓</button>
+                                <button class="btn-danger" onclick="editing.expense=null;renderExpenses()">✕</button>
+                            </div>
+                        </li>`;
+                } else {
+                    list.innerHTML += `
+                        <li class="expense-row">
+                            <div class="li-info">
+                                <span class="li-name">${esc(exp.description)}</span>
+                                <span class="li-detail">${esc(exp.category)} · ${esc(exp.spent_on)}${exp.recurring_id ? ' · 🔁 auto' : ''}</span>
+                            </div>
+                            <div class="li-value expense">${formatEGP(exp.amount)}</div>
+                            <div class="li-actions">
+                                <button class="btn-edit" onclick="editing.expense=${exp.id};renderExpenses()">✏️</button>
+                                <button class="btn-danger" onclick="deleteExpense(${exp.id})">X</button>
+                            </div>
+                        </li>`;
+                }
+            });
+
+            renderCategoryBreakdown(items);
+        }
+
+        // ---- Category breakdown with budgets --------------------------------
+        async function saveBudget(category, value) {
+            const monthly_limit = parseFloat(value) || 0;
+            try {
+                await api('/api/budgets', { method: 'POST', body: JSON.stringify({ category, monthly_limit }) });
+                state.budgets = state.budgets.filter(b => b.category !== category);
+                if (monthly_limit > 0) state.budgets.push({ category, monthly_limit });
+                renderCategoryBreakdown(expensesForMonth());
+                calculateSafeToSpend();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderCategoryBreakdown(items) {
+            const budgets = Object.fromEntries(state.budgets.map(b => [b.category, b.monthly_limit]));
+            const byCat = {};
+            items.forEach(e => { byCat[e.category] = (byCat[e.category] || 0) + e.amount; });
+            const cats = [...new Set([...Object.keys(byCat), ...Object.keys(budgets)])]
+                .sort((a, b) => (byCat[b] || 0) - (byCat[a] || 0) || a.localeCompare(b));
+            const catSection = document.getElementById('catSection');
+            if (!cats.length) { catSection.innerHTML = ''; return; }
+            const maxSpend = Math.max(...cats.map(c => byCat[c] || 0), 1);
+            catSection.innerHTML = '<h4>By Category <span class="budget-hint">(set a monthly budget on the right — bar turns red when over)</span></h4>'
+                + cats.map(name => {
+                    const spent = byCat[name] || 0;
+                    const limit = budgets[name];
+                    let width, amountHtml;
+                    if (limit) {
+                        const over = spent > limit;
+                        width = Math.min(spent / limit, 1) * 100;
+                        amountHtml = `<span class="${over ? 'over-mark' : ''}">${formatEGP(spent)}</span> / ${formatEGP(limit)}`;
+                        return `
+                            <div class="cat-row">
+                                <span class="cat-name">${esc(name)}</span>
+                                <span class="cat-bar-track"><span class="cat-bar${over ? ' over' : ''}" style="display:block;width:${width.toFixed(1)}%;"></span></span>
+                                <span class="cat-amount">${amountHtml}</span>
+                                <input class="cat-budget" type="number" min="0" placeholder="budget" value="${limit}" onchange="saveBudget('${jsStr(name)}', this.value)">
+                            </div>`;
+                    }
+                    width = spent / maxSpend * 100;
+                    return `
+                        <div class="cat-row">
+                            <span class="cat-name">${esc(name)}</span>
+                            <span class="cat-bar-track"><span class="cat-bar" style="display:block;width:${width.toFixed(1)}%;"></span></span>
+                            <span class="cat-amount">${formatEGP(spent)}</span>
+                            <input class="cat-budget" type="number" min="0" placeholder="budget" onchange="saveBudget('${jsStr(name)}', this.value)">
+                        </div>`;
+                }).join('');
+        }
+
+        // ---- Safe to spend (summary card) ------------------------------------
+        function calculateSafeToSpend() {
+            const ym = todayStr().slice(0, 7);
+            const income = state.incomes
+                .filter(i => (i.received_on || '').startsWith(ym))
+                .reduce((s, i) => s + i.amount, 0);
+            const el = document.getElementById('sumSafe');
+            if (!income) { el.style.display = 'none'; return; }
+            const budgets = Object.fromEntries(state.budgets.map(b => [b.category, b.monthly_limit]));
+            const spentBy = {};
+            state.expenses
+                .filter(e => (e.spent_on || '').startsWith(ym))
+                .forEach(e => { spentBy[e.category] = (spentBy[e.category] || 0) + e.amount; });
+            const cats = new Set([...Object.keys(budgets), ...Object.keys(spentBy)]);
+            let committed = 0;
+            cats.forEach(c => { committed += Math.max(spentBy[c] || 0, budgets[c] || 0); });
+            const safe = income - committed;
+            el.style.display = '';
+            el.innerText = `🧮 Safe to spend in ${monthLabel(ym)}: ${formatEGP(Math.max(0, safe))} (income ${formatCompact(income)} − committed ${formatCompact(committed)})`;
+        }
+
+        // ---- INCOME ------------------------------------------------------------
+        async function addIncome() {
+            const description = document.getElementById('incDesc').value.trim();
+            const amount = parseFloat(document.getElementById('incAmount').value);
+            const source = document.getElementById('incSource').value.trim() || 'Other';
+            const received_on = document.getElementById('incDate').value;
+            if (!description || !amount) return alert("Please enter a description and amount");
+            try {
+                state.incomes.push(await api('/api/incomes', { method: 'POST', body: JSON.stringify({ description, amount, source, received_on }) }));
+                document.getElementById('incDesc').value = '';
+                document.getElementById('incAmount').value = '';
+                document.getElementById('incSource').value = '';
+                renderExpenses();
+                renderReport();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteIncome(id) {
+            try {
+                await api('/api/incomes/' + id, { method: 'DELETE' });
+                state.incomes = state.incomes.filter(i => i.id !== id);
+                renderExpenses();
+                renderReport();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderIncomes(incItems) {
+            incItems = incItems || state.incomes.filter(i => (i.received_on || '').startsWith(viewMonth));
+            document.getElementById('incDate').value ||= viewMonth + '-' + String(new Date().getDate()).padStart(2, '0');
+            const list = document.getElementById('incomeList');
+            list.innerHTML = '';
+            if (!incItems.length) {
+                list.innerHTML = `<li class="empty">No income recorded in ${monthLabel()}.</li>`;
+                return;
+            }
+            incItems.forEach(inc => {
+                list.innerHTML += `
+                    <li class="income-row">
+                        <div class="li-info">
+                            <span class="li-name">${esc(inc.description)}</span>
+                            <span class="li-detail">${esc(inc.source)} · ${esc(inc.received_on)}</span>
+                        </div>
+                        <div class="li-value income">+${formatEGP(inc.amount)}</div>
+                        <div class="li-actions">
+                            <button class="btn-danger" onclick="deleteIncome(${inc.id})">X</button>
+                        </div>
+                    </li>`;
+            });
+        }
+
+        // ---- RECURRING BILLS ----------------------------------------------------
+        async function addRecurring() {
+            const description = document.getElementById('recDesc').value.trim();
+            const amount = parseFloat(document.getElementById('recAmount').value);
+            const category = document.getElementById('recCategory').value.trim() || 'Other';
+            const day_of_month = parseInt(document.getElementById('recDay').value, 10);
+            if (!description || !amount) return alert("Please enter a description and amount");
+            if (!day_of_month || day_of_month < 1 || day_of_month > 31) return alert("Day of month must be 1-31");
+            try {
+                await api('/api/recurring', { method: 'POST', body: JSON.stringify({ description, amount, category, day_of_month }) });
+                document.getElementById('recDesc').value = '';
+                document.getElementById('recAmount').value = '';
+                document.getElementById('recCategory').value = '';
+                document.getElementById('recDay').value = '';
+                await loadState(); // the server just materialized this month's expense
+            } catch (e) { alert(e.message); }
+        }
+
+        async function toggleRecurring(id) {
+            const rule = state.recurring.find(r => r.id === id);
+            if (!rule) return;
+            try {
+                await api('/api/recurring/' + id, { method: 'PUT', body: JSON.stringify({ active: rule.active ? 0 : 1 }) });
+                await loadState();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteRecurringRule(id) {
+            if (!confirm("Delete this recurring bill? (Expenses already recorded are kept.)")) return;
+            try {
+                await api('/api/recurring/' + id, { method: 'DELETE' });
+                state.recurring = state.recurring.filter(r => r.id !== id);
+                renderRecurring();
+                renderBillBanner();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderRecurring() {
+            const list = document.getElementById('recurringList');
+            list.innerHTML = '';
+            if (!state.recurring.length) {
+                list.innerHTML = '<li class="empty">No recurring bills yet — add rent, phone, subscriptions…</li>';
+                return;
+            }
+            state.recurring.forEach(rule => {
+                list.innerHTML += `
+                    <li class="recurring-row${rule.active ? '' : ' paused'}">
+                        <div class="li-info">
+                            <span class="li-name">${esc(rule.description)}</span>
+                            <span class="li-detail">${esc(rule.category)} · monthly on the ${rule.day_of_month}${rule.day_of_month % 10 === 1 && rule.day_of_month !== 11 ? 'st' : rule.day_of_month % 10 === 2 && rule.day_of_month !== 12 ? 'nd' : rule.day_of_month % 10 === 3 && rule.day_of_month !== 13 ? 'rd' : 'th'}${rule.active ? '' : ' · ⏸ paused'}</span>
+                        </div>
+                        <div class="li-value expense">${formatEGP(rule.amount)}</div>
+                        <div class="li-actions">
+                            <button class="btn-edit" onclick="toggleRecurring(${rule.id})">${rule.active ? '⏸' : '▶'}</button>
+                            <button class="btn-danger" onclick="deleteRecurringRule(${rule.id})">X</button>
+                        </div>
+                    </li>`;
+            });
+        }
+
+        function renderBillBanner() {
+            const banner = document.getElementById('billBanner');
+            const now = new Date();
+            const ym = todayStr().slice(0, 7);
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const due = [];
+            state.recurring.filter(r => r.active).forEach(rule => {
+                const has = state.expenses.some(e => e.recurring_id === rule.id && (e.spent_on || '').startsWith(ym));
+                if (has) return;
+                const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+                let d = new Date(now.getFullYear(), now.getMonth(), Math.min(rule.day_of_month, dim));
+                if (d < today) {
+                    const nm = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    const ndim = new Date(nm.getFullYear(), nm.getMonth() + 1, 0).getDate();
+                    d = new Date(nm.getFullYear(), nm.getMonth(), Math.min(rule.day_of_month, ndim));
+                }
+                const days = Math.round((d - today) / 86400000);
+                if (days >= 0 && days <= 7) due.push({ rule, d, days });
+            });
+            if (!due.length) { banner.style.display = 'none'; return; }
+            due.sort((a, b) => a.days - b.days);
+            banner.style.display = '';
+            banner.innerHTML = '⏰ <b>Due soon:</b> ' + due.map(({ rule, d, days }) =>
+                `${esc(rule.description)} <b>${formatEGP(rule.amount)}</b> on ${d.toLocaleDateString('en-EG', { day: 'numeric', month: 'short' })} (in ${days === 0 ? 'today' : days + ' day' + (days > 1 ? 's' : '')})`
+            ).join(' · ');
+        }
+
+        // ---- GOALS ---------------------------------------------------------------
+        async function addGoal() {
+            const name = document.getElementById('goalName').value.trim();
+            const target_amount = parseFloat(document.getElementById('goalTarget').value);
+            const deadline = document.getElementById('goalDeadline').value;
+            if (!name || !target_amount) return alert("Please enter a goal name and target amount");
+            try {
+                state.goals.push(await api('/api/goals', { method: 'POST', body: JSON.stringify({ name, target_amount, deadline }) }));
+                document.getElementById('goalName').value = '';
+                document.getElementById('goalTarget').value = '';
+                document.getElementById('goalDeadline').value = '';
+                renderGoals();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function saveGoal(id) {
+            const name = document.getElementById('editGoalName').value.trim();
+            const target_amount = parseFloat(document.getElementById('editGoalTarget').value);
+            const saved_amount = parseFloat(document.getElementById('editGoalSaved').value) || 0;
+            const deadline = document.getElementById('editGoalDeadline').value;
+            if (!name || !target_amount) return alert("Please enter a name and target");
+            try {
+                const updated = await api('/api/goals/' + id, { method: 'PUT', body: JSON.stringify({ name, target_amount, saved_amount, deadline }) });
+                state.goals = state.goals.map(g => g.id === id ? updated : g);
+                editing.goal = null;
+                renderGoals();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteGoal(id) {
+            try {
+                await api('/api/goals/' + id, { method: 'DELETE' });
+                state.goals = state.goals.filter(g => g.id !== id);
+                renderGoals();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function addGoalFunds(id) {
+            const goal = state.goals.find(g => g.id === id);
+            if (!goal) return;
+            const input = prompt(`Add how much to "${goal.name}"? (saved so far: ${formatEGP(goal.saved_amount)})`);
+            if (input === null) return;
+            const amount = parseFloat(input);
+            if (!amount || amount <= 0) return alert("Please enter a positive amount");
+            try {
+                const updated = await api('/api/goals/' + id, { method: 'PUT', body: JSON.stringify({ saved_amount: goal.saved_amount + amount }) });
+                state.goals = state.goals.map(g => g.id === id ? updated : g);
+                renderGoals();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderGoals() {
+            const list = document.getElementById('goalList');
+            list.innerHTML = '';
+            if (!state.goals.length) {
+                list.innerHTML = '<li class="empty">No goals yet — a laptop? an emergency fund? a wedding?</li>';
+                return;
+            }
+            state.goals.forEach(goal => {
+                const pct = Math.min(100, goal.saved_amount / goal.target_amount * 100);
+                const done = goal.saved_amount >= goal.target_amount;
+                const dl = goal.deadline
+                    ? ' · by ' + new Date(goal.deadline + 'T00:00').toLocaleDateString('en-EG', { month: 'short', year: 'numeric' })
+                    : '';
+                if (editing.goal === goal.id) {
+                    list.innerHTML += `
+                        <li style="flex-wrap: wrap;">
+                            <input type="text" id="editGoalName" value="${esc(goal.name)}" style="flex:2;">
+                            <input type="number" id="editGoalSaved" value="${goal.saved_amount}" placeholder="Saved" style="flex:1;" title="Saved so far">
+                            <input type="number" id="editGoalTarget" value="${goal.target_amount}" placeholder="Target" style="flex:1;">
+                            <input type="date" id="editGoalDeadline" value="${esc(goal.deadline || '')}" style="flex:1;">
+                            <div class="li-actions">
+                                <button onclick="saveGoal(${goal.id})">✓</button>
+                                <button class="btn-danger" onclick="editing.goal=null;renderGoals()">✕</button>
+                            </div>
+                        </li>`;
+                } else {
+                    list.innerHTML += `
+                        <li class="goal-row">
+                            <div class="li-info">
+                                <span class="li-name">${esc(goal.name)}${done ? ' ✅' : ''}</span>
+                                <span class="li-detail">${formatEGP(goal.saved_amount)} of ${formatEGP(goal.target_amount)}${dl}</span>
+                                <div class="goal-bar-row">
+                                    <span class="prog-track"><span class="prog-fill" style="display:block;width:${pct.toFixed(1)}%;"></span></span>
+                                    <span class="goal-pct">${pct.toFixed(0)}%</span>
+                                </div>
+                            </div>
+                            <div class="li-actions">
+                                <button class="btn-edit" onclick="addGoalFunds(${goal.id})">＋ Save</button>
+                                <button class="btn-edit" onclick="editing.goal=${goal.id};renderGoals()">✏️</button>
+                                <button class="btn-danger" onclick="deleteGoal(${goal.id})">X</button>
+                            </div>
+                        </li>`;
+                }
+            });
+        }
+
+        // ---- 6-MONTH INCOME VS SPENDING REPORT -----------------------------------
+        function roundedTopRect(x, y, w, h, r) {
+            r = Math.min(r, h, w / 2);
+            return `M ${x.toFixed(1)} ${(y + h).toFixed(1)} `
+                + `L ${x.toFixed(1)} ${(y + r).toFixed(1)} Q ${x.toFixed(1)} ${y} ${(x + r).toFixed(1)} ${y} `
+                + `L ${(x + w - r).toFixed(1)} ${y} Q ${(x + w).toFixed(1)} ${y} ${(x + w).toFixed(1)} ${(y + r).toFixed(1)} `
+                + `L ${(x + w).toFixed(1)} ${(y + h).toFixed(1)} Z`;
+        }
+
+        function renderReport() {
+            const wrap = document.getElementById('reportWrap');
+            const data = state.monthly;
+            if (!data.length || data.every(d => !d.income && !d.expenses)) {
+                wrap.innerHTML = '<div class="empty">Record some income or expenses and a 6-month comparison appears here.</div>';
+                return;
+            }
+
+            const W = 640, H = 250, L = 52, R = 12, T = 34, B = 32;
+            const pw = W - L - R, ph = H - T - B;
+            const max = Math.max(...data.flatMap(d => [d.income, d.expenses])) * 1.08 || 1;
+            const Y = v => T + (1 - v / max) * ph;
+            const slot = pw / data.length;
+            const barW = Math.min(18, slot / 3), gap = 4;
+            const groupW = barW * 2 + gap;
+
+            let grid = '';
+            const { ticks, step } = niceTicks(0, max, 4);
+            ticks.forEach(t => {
+                const y = Y(t).toFixed(1);
+                grid += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="#e1e0d9" stroke-width="1"/>`
+                    + `<text x="${L - 6}" y="${+y + 3.5}" text-anchor="end" fill="#7f8c8d" font-size="11" style="font-variant-numeric:tabular-nums">${formatTick(t, step)}</text>`;
+            });
+
+            let bars = '', hits = '', labels = '';
+            data.forEach((d, i) => {
+                const gx = L + slot * i + (slot - groupW) / 2;
+                const [, mo] = d.ym.split('-').map(Number); // ym is "YYYY-MM"
+                const incH = d.income / max * ph, expH = d.expenses / max * ph;
+                if (d.income > 0) bars += `<path d="${roundedTopRect(gx, Y(d.income), barW, Math.max(incH, 1), 4)}" fill="#2a78d6"/>`;
+                if (d.expenses > 0) bars += `<path d="${roundedTopRect(gx + barW + gap, Y(d.expenses), barW, Math.max(expH, 1), 4)}" fill="#eb6834"/>`;
+                labels += `<text x="${(L + slot * i + slot / 2).toFixed(1)}" y="${H - 10}" text-anchor="middle" fill="#7f8c8d" font-size="11">${new Date(2020, mo - 1, 1).toLocaleDateString('en-EG', { month: 'short' })}</text>`;
+                hits += `<rect x="${(L + slot * i).toFixed(1)}" y="${T}" width="${slot.toFixed(1)}" height="${ph}" fill="transparent" data-i="${i}" style="cursor:pointer"/>`;
+            });
+
+            // Selective value labels: the latest month only
+            const last = data[data.length - 1];
+            const lastGx = L + slot * (data.length - 1) + (slot - groupW) / 2;
+            if (last.income > 0) labels += `<text x="${(lastGx + barW / 2).toFixed(1)}" y="${(Y(last.income) - 6).toFixed(1)}" text-anchor="middle" fill="#2c3e50" font-size="11" font-weight="600">${formatCompact(last.income)}</text>`;
+            if (last.expenses > 0) labels += `<text x="${(lastGx + barW + gap + barW / 2).toFixed(1)}" y="${(Y(last.expenses) - 6).toFixed(1)}" text-anchor="middle" fill="#2c3e50" font-size="11" font-weight="600">${formatCompact(last.expenses)}</text>`;
+
+            wrap.innerHTML = TOOLTIP_HTML + `
+                <div class="legend">
+                    <span><span class="sw" style="background:#2a78d6;"></span>Income</span>
+                    <span><span class="sw" style="background:#eb6834;"></span>Spending</span>
+                </div>
+                <svg viewBox="0 0 ${W} ${H}" aria-label="Income versus spending, last 6 months">
+                    ${grid}${bars}${labels}
+                    <line x1="${L}" y1="${T + ph}" x2="${W - R}" y2="${T + ph}" stroke="#c3c2b7" stroke-width="1"/>
+                    ${hits}
+                </svg>`;
+
+            const svg = wrap.querySelector('svg');
+            const tip = wrap.querySelector('.chart-tooltip');
+            const ttVal = tip.querySelector('.tt-val');
+            const ttDate = tip.querySelector('.tt-date');
+            svg.querySelectorAll('rect[data-i]').forEach(rect => {
+                rect.addEventListener('pointermove', e => {
+                    const d = data[+rect.dataset.i];
+                    const net = d.income - d.expenses;
+                    ttVal.textContent = monthLabel(d.ym);
+                    ttDate.textContent = `Income ${formatEGP(d.income)} · Spending ${formatEGP(d.expenses)} · Net ${net >= 0 ? '+' : ''}${formatEGP(net)}`;
+                    tip.style.display = 'block';
+                    const box = svg.getBoundingClientRect();
+                    const tw = tip.offsetWidth;
+                    let x = e.clientX - box.left + 12;
+                    if (x + tw > box.width) x = e.clientX - box.left - tw - 12;
+                    tip.style.left = x + 'px';
+                    tip.style.top = Math.max(0, e.clientY - box.top - 40) + 'px';
+                });
+                rect.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+            });
+        }
+
+        // ---- GAME'YAT -------------------------------------------------------------
+        async function addGameyat() {
+            const name = document.getElementById('gamName').value.trim();
+            const monthly_amount = parseFloat(document.getElementById('gamMonthly').value);
+            const total_members = parseInt(document.getElementById('gamMembers').value, 10);
+            const my_position = parseInt(document.getElementById('gamPosition').value, 10);
+            if (!name || !monthly_amount) return alert("Please enter a name and monthly amount");
+            if (!total_members || total_members < 2) return alert("Members must be at least 2");
+            if (!my_position || my_position < 1 || my_position > total_members) return alert("Your turn must be between 1 and the number of members");
+            try {
+                state.gameyat.push(await api('/api/gameyat', { method: 'POST', body: JSON.stringify({ name, monthly_amount, total_members, my_position }) }));
+                document.getElementById('gamName').value = '';
+                document.getElementById('gamMonthly').value = '';
+                document.getElementById('gamMembers').value = '';
+                document.getElementById('gamPosition').value = '';
+                renderGameyat();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteGameyat(id) {
+            try {
+                await api('/api/gameyat/' + id, { method: 'DELETE' });
+                state.gameyat = state.gameyat.filter(g => g.id !== id);
+                renderGameyat();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function advanceGameyat(id) {
+            try {
+                const updated = await api(`/api/gameyat/${id}/advance`, { method: 'POST' });
+                state.gameyat = state.gameyat.map(g => g.id === id ? updated : g);
+                renderGameyat();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderGameyat() {
+            const list = document.getElementById('gameyatList');
+            list.innerHTML = '';
+            if (!state.gameyat.length) {
+                list.innerHTML = '<li class="empty">Not in a game\'ya? Add one to track your turn and contributions.</li>';
+                return;
+            }
+            state.gameyat.forEach(g => {
+                const pct = Math.min(100, g.rounds_done / g.total_members * 100);
+                const received = g.rounds_done >= g.my_position;
+                const paid = g.rounds_done * g.monthly_amount;
+                list.innerHTML += `
+                    <li class="gameyat-row">
+                        <div class="li-info">
+                            <span class="li-name">${esc(g.name)}${received ? ' ✅' : ''}</span>
+                            <span class="li-detail">${formatEGP(g.monthly_amount)}/month · ${g.rounds_done}/${g.total_members} rounds · paid so far ${formatEGP(paid)} · ${received ? 'you already received' : 'you receive in round ' + g.my_position}</span>
+                            <div class="goal-bar-row">
+                                <span class="prog-track"><span class="prog-fill blue" style="display:block;width:${pct.toFixed(1)}%;"></span></span>
+                                <span class="goal-pct">${pct.toFixed(0)}%</span>
+                            </div>
+                        </div>
+                        <div class="li-actions">
+                            <button class="btn-edit" onclick="advanceGameyat(${g.id})" ${g.rounds_done >= g.total_members ? 'disabled' : ''}>➡ Round</button>
+                            <button class="btn-danger" onclick="deleteGameyat(${g.id})">X</button>
+                        </div>
+                    </li>`;
+            });
+        }
+
+        // ---- SNAPSHOTS LOGIC (wealth history) --------------------------------
+        async function takeSnapshot() {
+            try {
+                await flushSettings(); // make sure the rates/amounts just typed are in the DB first
+                state.snapshots.push(await api('/api/snapshots', { method: 'POST' }));
+                renderSnapshots();
+            } catch (e) { alert(e.message); }
+        }
+
+        async function deleteSnapshot(id) {
+            try {
+                await api('/api/snapshots/' + id, { method: 'DELETE' });
+                state.snapshots = state.snapshots.filter(s => s.id !== id);
+                renderSnapshots();
+            } catch (e) { alert(e.message); }
+        }
+
+        function renderSnapshots() {
+            renderChart();
+            const list = document.getElementById('snapshotList');
+            list.innerHTML = '';
+            if (!state.snapshots.length) {
+                list.innerHTML = '<li class="empty">No snapshots yet.</li>';
+                return;
+            }
+            [...state.snapshots].reverse().forEach(s => {
+                const d = new Date(s.taken_at.replace(' ', 'T'));
+                const label = d.toLocaleDateString('en-EG', { day: 'numeric', month: 'short', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString('en-EG', { hour: '2-digit', minute: '2-digit' });
+                list.innerHTML += `
+                    <li class="snapshot-row">
+                        <div class="li-info">
+                            <span class="li-name">${esc(label)}</span>
+                            <span class="li-detail">Loans ${formatCompact(s.total_loans)} · Debts ${formatCompact(s.total_debts || 0)} · Gold ${formatCompact(s.total_gold)} · USD ${formatCompact(s.total_usd)} · Cash ${formatCompact(s.total_egp)}</span>
+                        </div>
+                        <div class="li-value">${formatEGP(s.grand_total)}</div>
+                        <button class="btn-danger" onclick="deleteSnapshot(${s.id})">X</button>
+                    </li>`;
+            });
+        }
+
+        function setChartCurrency(c) {
+            chartCurrency = c;
+            renderChart();
+        }
+
+        function renderChart() {
+            const wrap = document.getElementById('chartWrap');
+            document.getElementById('curEgp').classList.toggle('on', chartCurrency === 'EGP');
+            document.getElementById('curUsd').classList.toggle('on', chartCurrency === 'USD');
+            const inUsd = chartCurrency === 'USD';
+            const fmtVal = v => inUsd ? formatUSD(v) : formatEGP(v);
+            const fmtCompactVal = v => (inUsd ? '$' : '') + formatCompact(v);
+
+            let snaps = state.snapshots;
+            if (inUsd) snaps = snaps.filter(s => s.usd_rate > 0);
+            if (!state.snapshots.length) {
+                wrap.innerHTML = '<div class="empty">Click "📷 Save Snapshot" above to start tracking your wealth over time.</div>' + TOOLTIP_HTML;
+                return;
+            }
+            if (inUsd && snaps.length < 1) {
+                wrap.innerHTML = '<div class="empty">No snapshots with a stored USD rate yet — take a new snapshot after setting the exchange rate.</div>' + TOOLTIP_HTML;
+                return;
+            }
+
+            // Geometry
+            const W = 640, H = 230, L = 50, R = 66, T = 14, B = 30;
+            const pw = W - L - R, ph = H - T - B;
+            const ts = snaps.map(s => new Date(s.taken_at.replace(' ', 'T')).getTime());
+            const vals = snaps.map(s => inUsd ? s.grand_total / s.usd_rate : s.grand_total);
+            let x0 = Math.min(...ts), x1 = Math.max(...ts);
+            if (x1 === x0) { x0 -= 1; x1 += 1; }
+            let lo = Math.min(...vals), hi = Math.max(...vals);
+            if (hi === lo) { lo = Math.max(0, lo * 0.9); hi = (hi * 1.1) || 1000; }
+            const padY = (hi - lo) * 0.08;
+            lo = Math.max(0, lo - padY); hi += padY;
+            const X = t => L + (t - x0) / (x1 - x0) * pw;
+            const Y = v => T + (1 - (v - lo) / (hi - lo)) * ph;
+
+            const pts = ts.map((t, i) => [X(t), Y(vals[i])]);
+            const linePath = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+            const areaPath = `M ${pts[0][0].toFixed(1)} ${(T + ph).toFixed(1)} ` + pts.map(p => `L ${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ') + ` L ${pts[pts.length - 1][0].toFixed(1)} ${(T + ph).toFixed(1)} Z`;
+
+            // Gridlines + y labels
+            let grid = '';
+            const { ticks, step } = niceTicks(lo, hi, 4);
+            ticks.forEach(t => {
+                const y = Y(t).toFixed(1);
+                grid += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}" stroke="#e1e0d9" stroke-width="1"/>`
+                    + `<text x="${L - 6}" y="${+y + 3.5}" text-anchor="end" fill="#7f8c8d" font-size="11" style="font-variant-numeric:tabular-nums">${formatTick(t, step)}</text>`;
+            });
+
+            // X labels: first / middle / last (time when the whole range is one day)
+            const sameDay = new Date(ts[0]).toDateString() === new Date(ts[ts.length - 1]).toDateString();
+            const fmtDate = t => sameDay
+                ? new Date(t).toLocaleTimeString('en-EG', { hour: '2-digit', minute: '2-digit' })
+                : new Date(t).toLocaleDateString('en-EG', { day: 'numeric', month: 'short' });
+            const mid = Math.floor((ts.length - 1) / 2);
+            const xLabels = [
+                [pts[0][0], fmtDate(ts[0]), 'start'],
+                ts.length > 2 ? [pts[mid][0], fmtDate(ts[mid]), 'middle'] : null,
+                [pts[pts.length - 1][0], fmtDate(ts[ts.length - 1]), 'end'],
+            ].filter(Boolean).map(([x, text, anchor]) =>
+                `<text x="${x.toFixed(1)}" y="${H - 8}" text-anchor="${anchor}" fill="#7f8c8d" font-size="11">${text}</text>`
+            ).join('');
+
+            // End label (value at the last point) — clamped inside the plot
+            const last = pts[pts.length - 1];
+            const endLabelY = Math.min(Math.max(last[1], T + 10), T + ph - 4);
+
+            wrap.innerHTML = TOOLTIP_HTML + `
+                <svg viewBox="0 0 ${W} ${H}" tabindex="0" aria-label="Wealth over time">
+                    ${grid}${xLabels}
+                    <path d="${areaPath}" fill="#2a78d6" opacity="0.08"/>
+                    <path d="${linePath}" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+                    ${pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>`).join('')}
+                    <text x="${(last[0] + 9).toFixed(1)}" y="${endLabelY.toFixed(1)}" fill="#2c3e50" font-size="12" font-weight="600">${fmtCompactVal(vals[vals.length - 1])}</text>
+                    <line id="crosshair" x1="0" x2="0" y1="${T}" y2="${T + ph}" stroke="#b3b6b7" stroke-width="1" visibility="hidden"/>
+                    <circle id="activeDot" r="6" fill="#2a78d6" stroke="#ffffff" stroke-width="2" visibility="hidden"/>
+                    <rect id="chartHit" x="${L}" y="${T}" width="${pw}" height="${ph}" fill="transparent" style="cursor:crosshair"/>
+                </svg>`;
+
+            // Hover layer: crosshair snaps to nearest snapshot
+            const svg = wrap.querySelector('svg');
+            const crosshair = svg.querySelector('#crosshair');
+            const activeDot = svg.querySelector('#activeDot');
+            const hit = svg.querySelector('#chartHit');
+            const tip = wrap.querySelector('.chart-tooltip');
+            const ttVal = tip.querySelector('.tt-val');
+            const ttDate = tip.querySelector('.tt-date');
+
+            function show(i) {
+                const [cx, cy] = pts[i];
+                crosshair.setAttribute('x1', cx); crosshair.setAttribute('x2', cx);
+                crosshair.setAttribute('visibility', 'visible');
+                activeDot.setAttribute('cx', cx); activeDot.setAttribute('cy', cy);
+                activeDot.setAttribute('visibility', 'visible');
+                const d = new Date(ts[i]);
+                ttVal.textContent = fmtVal(vals[i]);
+                ttDate.textContent = d.toLocaleDateString('en-EG', { day: 'numeric', month: 'short', year: 'numeric' })
+                    + ' ' + d.toLocaleTimeString('en-EG', { hour: '2-digit', minute: '2-digit' });
+                const rect = svg.getBoundingClientRect();
+                const cssX = cx / W * rect.width, cssY = cy / H * rect.height;
+                tip.style.display = 'block';
+                const tw = tip.offsetWidth;
+                tip.style.left = (cssX + 12 + tw > rect.width ? cssX - tw - 12 : cssX + 12) + 'px';
+                tip.style.top = Math.max(0, cssY - 16) + 'px';
+            }
+
+            function hide() {
+                crosshair.setAttribute('visibility', 'hidden');
+                activeDot.setAttribute('visibility', 'hidden');
+                tip.style.display = 'none';
+            }
+
+            function nearest(clientX) {
+                const rect = svg.getBoundingClientRect();
+                const px = (clientX - rect.left) * W / rect.width;
+                const t = x0 + (px - L) / pw * (x1 - x0);
+                let best = 0, bestDist = Infinity;
+                ts.forEach((time, i) => {
+                    const d = Math.abs(time - t);
+                    if (d < bestDist) { bestDist = d; best = i; }
+                });
+                return best;
+            }
+
+            hit.addEventListener('pointermove', e => show(nearest(e.clientX)));
+            hit.addEventListener('pointerleave', hide);
+            svg.addEventListener('keydown', e => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                e.preventDefault();
+                let cur = svg.dataset.hoverIdx !== undefined ? +svg.dataset.hoverIdx : pts.length - 1;
+                cur = e.key === 'ArrowLeft' ? Math.max(0, cur - 1) : Math.min(pts.length - 1, cur + 1);
+                svg.dataset.hoverIdx = cur;
+                show(cur);
+            });
+            svg.addEventListener('blur', hide);
+        }
+
+        // ---- CSV IMPORT -------------------------------------------------------
+        async function importCsv(event) {
+            const file = event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            if (!confirm("Importing replaces ALL current data with the CSV contents. Continue?")) return;
+            try {
+                let data;
+                if (MODE === 'local') {
+                    data = await localApi('/api/import', { method: 'POST', csvText: await file.text() });
+                } else {
+                    const form = new FormData();
+                    form.append('file', file);
+                    const res = await fetch('/api/import', { method: 'POST', body: form });
+                    data = await res.json();
+                    if (!res.ok) throw new Error(data.error || res.statusText);
+                }
+                const n = data.imported;
+                alert(`Imported: ${Object.entries(n).filter(([, v]) => v > 0).map(([k, v]) => `${v} ${k}`).join(', ') || 'nothing'}.`);
+                await loadState();
+            } catch (e) { alert('Import failed: ' + e.message); }
+        }
+
+        // ---- Export (server endpoint or browser download) ----------------------
+        function downloadExport() {
+            if (MODE === 'local') {
+                const blob = new Blob([exportCsvText(dbLoad())], { type: 'text/csv' });
+                const a = document.createElement('a');
+                const d = new Date();
+                const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`;
+                a.href = URL.createObjectURL(blob);
+                a.download = `wealth_export_${stamp}.csv`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            } else {
+                location.href = '/api/export.csv';
+            }
+        }
+
+        // ---- CALCULATE TOTALS (live, from the inputs) --------------------------
+        function calculateTotals() {
+            // 1. Loans (owed to me) and debts (owed by me)
+            const totalLoans = state.loans.reduce((sum, l) => sum + l.amount, 0);
+            const totalDebts = state.debts.reduce((sum, d) => sum + d.amount, 0);
+
+            // 2. Gold
+            const rates = {
+                18: parseFloat(document.getElementById('rate18k').value) || 0,
+                21: parseFloat(document.getElementById('rate21k').value) || 0,
+                24: parseFloat(document.getElementById('rate24k').value) || 0,
+            };
+            let totalGold = 0;
+            state.gold.forEach(item => { totalGold += item.weight * (rates[item.karat] || 0); });
+
+            // 3. USD
+            const usdRate = parseFloat(document.getElementById('usdRate').value) || 0;
+            const usdAmount = parseFloat(document.getElementById('usdAmount').value) || 0;
+            const totalUsd = usdAmount * usdRate;
+            document.getElementById('usdEgpValue').innerText = formatEGP(totalUsd);
+
+            // 4. EGP
+            const totalEgp = parseFloat(document.getElementById('egpAmount').value) || 0;
+
+            // Grand Total (debts are money owed to others, so they reduce net wealth)
+            const grandTotal = totalLoans + totalGold + totalUsd + totalEgp - totalDebts;
+
+            // Update UI
+            document.getElementById('grandTotal').innerText = formatEGP(grandTotal);
+            document.getElementById('sumLoans').innerText = formatEGP(totalLoans);
+            document.getElementById('sumDebts').innerText = totalDebts ? '− ' + formatEGP(totalDebts) : '0';
+            document.getElementById('sumGold').innerText = formatEGP(totalGold);
+            document.getElementById('sumUsd').innerText = formatEGP(totalUsd);
+            document.getElementById('sumEgp').innerText = formatEGP(totalEgp);
+        }
+
+        // ---- Init -------------------------------------------------------------
+        (async () => {
+            MODE = await detectMode();
+            const badge = document.getElementById('modeBadge');
+            badge.style.display = 'inline-block';
+            if (MODE === 'local') {
+                badge.textContent = '☁️ Online edition — data is saved in this browser only';
+                badge.title = 'No server behind this page: everything you enter stays in THIS browser (localStorage).\nUse ⬇️ Export CSV for backups, and 📂 Import CSV to move data to another device or to the server edition.';
+            } else {
+                badge.textContent = '💾 Local server edition';
+                badge.title = 'server.py is running — data is stored in finance.db on this machine.';
+            }
+            try {
+                await loadState();
+            } catch (e) {
+                alert('Could not load data' + (MODE === 'server' ? ` — is server.py running? (${e.message})` : ` (${e.message})`));
+            }
+        })();
+    </script>
+</body>
+</html>
